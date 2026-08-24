@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+import io
 
 # 1. CẤU HÌNH TRANG WEB
 st.set_page_config(page_title="Hệ thống Quản lý Nhân sự Bệnh viện - Mẫu 2C-BNV", layout="wide")
 
-# 2. KHỞI TẠO VÀ CHUẨN HÓA DỮ LIỆU SỚM (Tránh lỗi KeyError)
+# 2. KHỞI TẠO DỮ LIỆU BAN ĐẦU
 def get_initial_data():
     return [
         {
@@ -26,7 +27,6 @@ def get_initial_data():
         }
     ]
 
-# Tự động làm sạch bộ nhớ cũ nếu phát hiện xung đột tên cột
 if 'df_nhansu' not in st.session_state or 'Ngay_Nang_Luong' not in st.session_state.df_nhansu.columns:
     df_temp = pd.DataFrame(get_initial_data())
     df_temp['Ngay_Nang_Luong'] = pd.to_datetime(df_temp['Ngay_Nang_Luong'])
@@ -45,7 +45,7 @@ menu = st.sidebar.radio("CHỨC NĂNG HỆ THỐNG", [
 ])
 
 # ----------------------------------------------------
-# PHÂN HỆ 1: TỔNG QUAN & CẢNH BÁO
+# PHÂN HỆ 1: CẢNH BÁO
 # ----------------------------------------------------
 if menu == "📊 Trung tâm Cảnh báo":
     st.header("🔔 CẢNH BÁO TỰ ĐỘNG THỜI HẠN & ĐÀO TẠO")
@@ -61,11 +61,11 @@ if menu == "📊 Trung tâm Cảnh báo":
     c4.metric("Thiếu giờ CME (<48h)", f"{len(df_cme)} người")
     
     st.markdown("---")
-    st.subheader("📌 Cảnh báo nâng lương chuẩn bị họp Hội đồng trong 60 ngày tới")
+    st.subheader("📌 Cảnh báo nâng lương trong 60 ngày tới")
     st.dataframe(df_luong[['Ma_NV', 'Ho_Ten', 'Khoa_Phong', 'He_So_Luong', 'Ngay_Nang_Luong']], use_container_width=True)
 
 # ----------------------------------------------------
-# PHÂN HỆ 2: DANH SÁCH LÝ LỊCH 2C
+# PHÂN HỆ 2: DANH SÁCH HỒ SƠ
 # ----------------------------------------------------
 elif menu == "📋 Danh sách Hồ sơ Lý lịch 2C":
     st.header("📋 DANH SÁCH LÝ LỊCH CÁN BỘ/VIÊN CHỨC")
@@ -90,23 +90,40 @@ elif menu == "📋 Danh sách Hồ sơ Lý lịch 2C":
     st.dataframe(filtered_df, use_container_width=True)
 
 # ----------------------------------------------------
-# PHÂN HỆ 3: NHẬP / XUẤT EXCEL CHUẨN 2C-BNV
+# PHÂN HỆ 3: NHẬP / XUẤT EXCEL CHUẨN XLSX
 # ----------------------------------------------------
 elif menu == "📂 Nhập/Xuất File Excel Mẫu 2C":
     st.header("📂 ĐỒNG BỘ DỮ LIỆU EXCEL TƯƠNG THÍCH MẪU 2C-BNV")
     
-    st.subheader("1. Tải về File Excel Mẫu Chuẩn (Template)")
-    template_df = pd.DataFrame(columns=[
-        "Ma_NV", "Ho_Ten", "Gioi_Tinh", "Ngay_Sinh", "So_CCCD", "Khoa_Phong", "Chuc_Vu",
-        "Ngach_Vien_Chuc", "Trinh_Do_Chuyen_Mon", "Ly_Luan_Chinh_Tri", "So_CCHN", "Gio_CME",
-        "Loai_HD", "Ngay_Het_Han_HD", "Bac_Luong", "He_So_Luong", "Ngay_Nang_Luong", "Trang_Thai"
-    ])
-    csv_template = template_df.to_csv(index=False).encode('utf-8-sig')
-    st.download_button("📄 Tải File Excel Mẫu (Template 2C)", csv_template, "Mau_Ly_Lich_2C_BNV.csv", "text/csv")
+    st.subheader("1. Tải về File Excel Mẫu Chuẩn (.xlsx)")
+    
+    # Tạo sẵn 1 dòng dữ liệu mẫu chuẩn Excel
+    sample_data = [{
+        "Ma_NV": "BV0001", "Ho_Ten": "Nguyễn Văn A", "Gioi_Tinh": "Nam", "Ngay_Sinh": "1990-01-01",
+        "So_CCCD": "001090123456", "Khoa_Phong": "Khoa Cấp cứu", "Chuc_Vu": "Bác sĩ",
+        "Ngach_Vien_Chuc": "Bác sĩ (V.08.01.03)", "Trinh_Do_Chuyen_Mon": "Bác sĩ CKI",
+        "Ly_Luan_Chinh_Tri": "Trung cấp", "So_CCHN": "001234/BYT-CCHN", "Gio_CME": 50,
+        "Loai_HD": "Không xác định thời hạn", "Ngay_Het_Han_HD": "2030-12-31",
+        "Bac_Luong": 1, "He_So_Luong": 2.34, "Ngay_Nang_Luong": "2026-12-31", "Trang_Thai": "Đang làm việc"
+    }]
+    template_df = pd.DataFrame(sample_data)
+    
+    # Xuất file dạng .xlsx chuẩn Excel bằng io.BytesIO
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        template_df.to_excel(writer, index=False, sheet_name='Mau_2C_BNV')
+    excel_data = output.getvalue()
+    
+    st.download_button(
+        label="📄 Tải File Excel Mẫu (.xlsx)", 
+        data=excel_data, 
+        file_name="Mau_Ly_Lich_2C_BNV.xlsx", 
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
     
     st.markdown("---")
     st.subheader("2. Tải File Excel Nhân Sự Đã Điền Lên Hệ Thống")
-    uploaded_file = st.file_uploader("Upload file .csv hoặc .xlsx chứa dữ liệu nhân sự", type=["csv", "xlsx"])
+    uploaded_file = st.file_uploader("Upload file .xlsx hoặc .csv chứa dữ liệu nhân sự", type=["csv", "xlsx"])
     
     if uploaded_file is not None:
         try:
