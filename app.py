@@ -5,9 +5,9 @@ from datetime import datetime, timedelta
 # 1. CẤU HÌNH TRANG WEB
 st.set_page_config(page_title="Hệ thống Quản lý Nhân sự Bệnh viện - Mẫu 2C-BNV", layout="wide")
 
-# 2. KHỞI TẠO DỮ LIỆU MẪU CHUẨN 2C-BNV
-if 'df_nhansu' not in st.session_state:
-    data_2c = [
+# 2. KHỞI TẠO VÀ CHUẨN HÓA DỮ LIỆU SỚM (Tránh lỗi KeyError)
+def get_initial_data():
+    return [
         {
             "Ma_NV": "BV0001", "Ho_Ten": "Nguyễn Văn An", "Gioi_Tinh": "Nam", "Ngay_Sinh": "1980-05-15",
             "So_CCCD": "001080012345", "Khoa_Phong": "Khoa Cấp cứu", "Chuc_Vu": "Trưởng khoa",
@@ -25,10 +25,13 @@ if 'df_nhansu' not in st.session_state:
             "Bac_Luong": 2, "He_So_Luong": 2.67, "Ngay_Nang_Luong": "2027-01-10", "Trang_Thai": "Đang làm việc"
         }
     ]
-    df = pd.DataFrame(data_2c)
-    df['Ngay_Nang_Luong'] = pd.to_datetime(df['Ngay_Nang_Luong'])
-    df['Ngay_Het_Han_HD'] = pd.to_datetime(df['Ngay_Het_Han_HD'])
-    st.session_state.df_nhansu = df
+
+# Tự động làm sạch bộ nhớ cũ nếu phát hiện xung đột tên cột
+if 'df_nhansu' not in st.session_state or 'Ngay_Nang_Luong' not in st.session_state.df_nhansu.columns:
+    df_temp = pd.DataFrame(get_initial_data())
+    df_temp['Ngay_Nang_Luong'] = pd.to_datetime(df_temp['Ngay_Nang_Luong'])
+    df_temp['Ngay_Het_Han_HD'] = pd.to_datetime(df_temp['Ngay_Het_Han_HD'])
+    st.session_state.df_nhansu = df_temp
 
 df = st.session_state.df_nhansu
 today = pd.to_datetime(datetime.now().date())
@@ -58,7 +61,7 @@ if menu == "📊 Trung tâm Cảnh báo":
     c4.metric("Thiếu giờ CME (<48h)", f"{len(df_cme)} người")
     
     st.markdown("---")
-    st.subheader("📌 Cảnh báo nâng lương chuẩn bị họp Hội đồng")
+    st.subheader("📌 Cảnh báo nâng lương chuẩn bị họp Hội đồng trong 60 ngày tới")
     st.dataframe(df_luong[['Ma_NV', 'Ho_Ten', 'Khoa_Phong', 'He_So_Luong', 'Ngay_Nang_Luong']], use_container_width=True)
 
 # ----------------------------------------------------
@@ -93,9 +96,6 @@ elif menu == "📂 Nhập/Xuất File Excel Mẫu 2C":
     st.header("📂 ĐỒNG BỘ DỮ LIỆU EXCEL TƯƠNG THÍCH MẪU 2C-BNV")
     
     st.subheader("1. Tải về File Excel Mẫu Chuẩn (Template)")
-    st.write("Bấm nút bên dưới để tải file Excel cấu trúc chuẩn về điền dữ liệu 1.500 nhân sự:")
-    
-    # Tạo file template mẫu
     template_df = pd.DataFrame(columns=[
         "Ma_NV", "Ho_Ten", "Gioi_Tinh", "Ngay_Sinh", "So_CCCD", "Khoa_Phong", "Chuc_Vu",
         "Ngach_Vien_Chuc", "Trinh_Do_Chuyen_Mon", "Ly_Luan_Chinh_Tri", "So_CCHN", "Gio_CME",
@@ -123,5 +123,6 @@ elif menu == "📂 Nhập/Xuất File Excel Mẫu 2C":
                 df_upload['Ngay_Het_Han_HD'] = pd.to_datetime(df_upload['Ngay_Het_Han_HD'])
                 st.session_state.df_nhansu = df_upload
                 st.success("Đã nạp toàn bộ dữ liệu nhân sự thành công!")
+                st.rerun()
         except Exception as e:
-            st.error(f"Lỗi đọc file: {e}. Vui lòng kiểm tra các cột dữ liệu theo đúng mẫu template.")
+            st.error(f"Lỗi đọc file: {e}. Vui lòng kiểm tra lại cấu trúc cột.")
