@@ -160,41 +160,52 @@ if menu == "🏠 Trang chủ & Tổng quan":
             st.info("Chưa có dữ liệu để lập báo cáo thống kê.")
         else:
             with st.expander("🔍 Lọc đa điều kiện nâng cao:", expanded=True):
+                # TÙY CHỌN CHẾ ĐỘ LỌC TƯƠNG ĐỐI HOẶC TUYỆT ĐỐI
+                match_mode = st.radio(
+                    "⚙️ Chế độ lọc:",
+                    options=["🔍 Lựa chọn tương đối (Chứa chuỗi ký tự)", "🎯 Lựa chọn tuyệt đối (Chính xác 100%)"],
+                    index=0,
+                    horizontal=True
+                )
+                is_contains = "tương đối" in match_mode.lower()
+
                 filtered_df = df.copy()
-                
                 f_col1, f_col2 = st.columns(2)
                 
+                # Hàm hỗ trợ lọc linh hoạt theo Tuyệt đối / Tương đối
+                def apply_filter(data_frame, col_name, selected_val, contains_mode=True):
+                    if selected_val == "Tất cả" or not selected_val:
+                        return data_frame
+                    if contains_mode:
+                        return data_frame[data_frame[col_name].astype(str).str.contains(selected_val, case=False, na=False, regex=False)]
+                    else:
+                        return data_frame[data_frame[col_name].astype(str) == selected_val]
+
                 with f_col1:
                     kp_list = ["Tất cả"] + sorted([str(x) for x in df['Khoa_Phong'].unique() if str(x).strip() != ''])
                     sel_kp = st.selectbox("1. Khoa / Phòng:", kp_list)
-                    if sel_kp != "Tất cả":
-                        filtered_df = filtered_df[filtered_df['Khoa_Phong'].astype(str) == sel_kp]
+                    filtered_df = apply_filter(filtered_df, 'Khoa_Phong', sel_kp, is_contains)
                         
                     td_list = ["Tất cả"] + sorted([str(x) for x in df['Trinh_Do_Chuyen_Mon'].unique() if str(x).strip() != ''])
                     sel_td = st.selectbox("2. Trình độ chuyên môn:", td_list)
-                    if sel_td != "Tất cả":
-                        filtered_df = filtered_df[filtered_df['Trinh_Do_Chuyen_Mon'].astype(str) == sel_td]
+                    filtered_df = apply_filter(filtered_df, 'Trinh_Do_Chuyen_Mon', sel_td, is_contains)
 
                     gt_list = ["Tất cả"] + sorted([str(x) for x in df['Gioi_Tinh'].unique() if str(x).strip() != ''])
                     sel_gt = st.selectbox("3. Giới tính:", gt_list)
-                    if sel_gt != "Tất cả":
-                        filtered_df = filtered_df[filtered_df['Gioi_Tinh'].astype(str) == sel_gt]
+                    filtered_df = apply_filter(filtered_df, 'Gioi_Tinh', sel_gt, is_contains)
 
                 with f_col2:
                     tt_list = ["Tất cả"] + sorted([str(x) for x in df['Trang_Thai'].unique() if str(x).strip() != ''])
                     sel_tt = st.selectbox("4. Trạng thái công tác:", tt_list)
-                    if sel_tt != "Tất cả":
-                        filtered_df = filtered_df[filtered_df['Trang_Thai'].astype(str) == sel_tt]
+                    filtered_df = apply_filter(filtered_df, 'Trang_Thai', sel_tt, is_contains)
 
                     hd_list = ["Tất cả"] + sorted([str(x) for x in df['Loai_HD'].unique() if str(x).strip() != ''])
                     sel_hd = st.selectbox("5. Loại Hợp đồng:", hd_list)
-                    if sel_hd != "Tất cả":
-                        filtered_df = filtered_df[filtered_df['Loai_HD'].astype(str) == sel_hd]
+                    filtered_df = apply_filter(filtered_df, 'Loai_HD', sel_hd, is_contains)
 
                     llct_list = ["Tất cả"] + sorted([str(x) for x in df['Ly_Luan_Chinh_Tri'].unique() if str(x).strip() != ''])
                     sel_llct = st.selectbox("6. Lý luận chính trị:", llct_list)
-                    if sel_llct != "Tất cả":
-                        filtered_df = filtered_df[filtered_df['Ly_Luan_Chinh_Tri'].astype(str) == sel_llct]
+                    filtered_df = apply_filter(filtered_df, 'Ly_Luan_Chinh_Tri', sel_llct, is_contains)
 
             # BÁO CÁO TỔNG QUAN TỶ LỆ DỮ LIỆU ĐÃ LỌC
             count_filtered = len(filtered_df)
