@@ -15,7 +15,7 @@ st.set_page_config(
 
 DB_FILE = "nhansu_benhvien.db"
 
-# 2. KHỞI TẠO CƠ SỞ DỮ LIỆU SQLITE (LƯU VĨNH VIỄN)
+# 2. KHỞI TẠO CƠ SỞ DỮ LIỆU SQLITE
 def init_sqlite_db():
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
@@ -59,29 +59,41 @@ def init_sqlite_db():
     conn.commit()
     conn.close()
 
+# Hàm làm sạch & chuẩn hóa dữ liệu DataFrame
+def clean_dataframe(df_in):
+    if df_in.empty:
+        return df_in
+    df_clean = df_in.copy()
+    # Xóa khoảng trắng thừa ở tất cả cột dạng chuỗi (Text)
+    for col in df_clean.select_dtypes(include=['object']).columns:
+        df_clean[col] = df_clean[col].astype(str).str.strip()
+        # Chuyển các chuỗi 'nan', 'None' về định dạng chuẩn
+        df_clean[col] = df_clean[col].replace({'nan': '', 'None': '', 'NaN': ''})
+    
+    # Ép kiểu dữ liệu ngày tháng
+    df_clean['Ngay_Nang_Luong'] = pd.to_datetime(df_clean['Ngay_Nang_Luong'], errors='coerce')
+    df_clean['Ngay_Het_Han_HD'] = pd.to_datetime(df_clean['Ngay_Het_Han_HD'], errors='coerce')
+    return df_clean
+
 # Đọc dữ liệu từ SQLite
 def load_data_from_db():
     conn = sqlite3.connect(DB_FILE)
     df_loaded = pd.read_sql_query("SELECT * FROM nhansu", conn)
     conn.close()
-    if not df_loaded.empty:
-        df_loaded['Ngay_Nang_Luong'] = pd.to_datetime(df_loaded['Ngay_Nang_Luong'], errors='coerce')
-        df_loaded['Ngay_Het_Han_HD'] = pd.to_datetime(df_loaded['Ngay_Het_Han_HD'], errors='coerce')
-    return df_loaded
+    return clean_dataframe(df_loaded)
 
 # Ghi/Ghi đè dữ liệu vào SQLite
 def save_data_to_db(df_to_save):
     conn = sqlite3.connect(DB_FILE)
-    df_temp = df_to_save.copy()
+    df_temp = clean_dataframe(df_to_save)
     df_temp['Ngay_Nang_Luong'] = df_temp['Ngay_Nang_Luong'].astype(str)
     df_temp['Ngay_Het_Han_HD'] = df_temp['Ngay_Het_Han_HD'].astype(str)
     df_temp.to_sql('nhansu', conn, if_exists='replace', index=False)
     conn.close()
 
-# Khởi tạo DB khi chạy ứng dụng
+# Khởi tạo DB
 init_sqlite_db()
 
-# Tải dữ liệu từ SQLite vào Session State
 if 'df_nhansu' not in st.session_state:
     st.session_state.df_nhansu = load_data_from_db()
 
@@ -99,7 +111,7 @@ KHOA_PHONG_LIST = [
 # 3. THANH MENU ĐIỀU HƯỚNG CHÍNH
 st.sidebar.image("https://img.icons8.com/color/96/hospital-2.png", width=80)
 st.sidebar.title("QUẢN LÝ NHÂN SỰ")
-st.sidebar.caption("Lưu dữ liệu vĩnh viễn (SQLite DB)")
+st.sidebar.caption("Phiên bản đã sửa lỗi Đếm Đảng viên & Trạng thái")
 
 menu = st.sidebar.radio(
     "DANH MỤC CHỨC NĂNG", 
@@ -123,11 +135,21 @@ if menu == "🏠 Trang chủ & Tổng quan":
     st.markdown("---")
     
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Tổng số Nhân sự", f"{len(df)} người", delta="Đã lưu SQLite")
+    col1.metric("Tổng số Nhân sự", f"{len(df)} người")
     
-    bs_count = len(df[df['Trinh_Do_Chuyen_Mon'].str.contains('Bác sĩ|Dược sĩ', case=False, na=False)]) if not df.empty else 0
-    dd_count = len(df[df['Trinh_Do_Chuyen_Mon'].str.contains('Điều dưỡng|Kỹ thuật viên', case=False, na=False)]) if not df.empty else 0
-    dv_count = len(df[df['Ngay_Vao_Dang'].str.contains('Chưa', case=False, na=False) == False]) if not df.empty else 0
+    if not df.empty:
+        bs_count = len(df[df['Trinh_Do_Chuyen_Mon'].astype(str).str.contains('Bác sĩ|Dược sĩ', case=False, na=False)])
+        dd_count = len(df[df['Trinh_Do_Chuyen_Mon'].astype(str).str.contains('Điều dưỡng|Kỹ thuật viên', case=False, na=False)])
+        
+        # LOGIC ĐẾM SỐ ĐẢNG VIÊN ĐÃ ĐƯỢC CẢI TIẾN CHUẨN XÁC
+        # Lọc ra những người có điền thông tin Ngày vào Đảng (khác trống, khác 'Chưa', 'Không', '0', '-')
+        dang_vien_df = df[
+            df['Ngay_Vao_Dang'].notnull() & 
+            ~df['Ngay_Vao_Dang'].astype(str).str.strip().str.lower().isin(['chưa', 'khong', 'không', '0', '-', '', 'none', 'nan'])
+        ]
+        dv_count = len(dang_vien_df)
+    else:
+        bs_count, dd_count, dv_count = 0, 0, 0
     
     col2.metric("Bác sĩ / Dược sĩ", f"{bs_count} người")
     col3.metric("Điều dưỡng / KTV", f"{dd_count} người")
@@ -144,11 +166,11 @@ if menu == "🏠 Trang chủ & Tổng quan":
             st.dataframe(df_khoa, use_container_width=True)
             
     with c_right:
-        st.subheader("🎓 Thống kê theo Trình độ Chuyên môn")
-        if not df.empty and 'Trinh_Do_Chuyen_Mon' in df.columns:
-            df_td = df['Trinh_Do_Chuyen_Mon'].value_counts().reset_index()
-            df_td.columns = ['Trình độ', 'Số lượng (người)']
-            st.dataframe(df_td, use_container_width=True)
+        st.subheader("📌 Thống kê Nhân sự theo Trạng thái công tác")
+        if not df.empty and 'Trang_Thai' in df.columns:
+            df_tt = df['Trang_Thai'].value_counts().reset_index()
+            df_tt.columns = ['Trạng thái', 'Số lượng (người)']
+            st.dataframe(df_tt, use_container_width=True)
 
 # -----------------------------------------------------------------------------
 # MENU 2: TRUNG TÂM CẢNH BÁO TỰ ĐỘNG
@@ -161,7 +183,7 @@ elif menu == "🔔 Trung tâm Cảnh báo Tự động":
     if not df.empty:
         df_luong = df[(df['Ngay_Nang_Luong'] >= today) & (df['Ngay_Nang_Luong'] <= today + timedelta(days=60))]
         df_hd = df[(df['Ngay_Het_Han_HD'] >= today) & (df['Ngay_Het_Han_HD'] <= today + timedelta(days=30))]
-        df_cme = df[df['Gio_CME'] < 48]
+        df_cme = df[pd.to_numeric(df['Gio_CME'], errors='coerce').fillna(0) < 48]
     else:
         df_luong, df_hd, df_cme = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
     
@@ -200,16 +222,17 @@ elif menu == "📋 Tra cứu & Danh sách Hồ sơ":
     st.markdown("---")
     
     if df.empty:
-        st.warning("⚠️ Cơ sở dữ liệu hiện chưa có hồ sơ nhân sự nào. Vui lòng vào menu '📂 Nhập / Xuất Excel' để nạp file 835 nhân sự vào hệ thống.")
+        st.warning("⚠️ Cơ sở dữ liệu hiện chưa có hồ sơ nhân sự nào. Vui lòng nạp file Excel vào hệ thống.")
     else:
         c_search, c_khoa, c_tt = st.columns([2, 1, 1])
         with c_search:
             search_kw = st.text_input("🔍 Tìm kiếm theo Họ tên, Mã NV, Số CCCD hoặc Số CCHN:")
         with c_khoa:
-            khoa_opts = ["Tất cả"] + list(df['Khoa_Phong'].dropna().unique())
+            khoa_opts = ["Tất cả"] + sorted([str(x) for x in df['Khoa_Phong'].dropna().unique() if str(x).strip() != ''])
             sel_khoa = st.selectbox("Lọc Khoa/Phòng:", khoa_opts)
         with c_tt:
-            sel_tt = st.selectbox("Trạng thái:", ["Tất cả", "Đang làm việc", "Nghỉ thai sản", "Đã nghỉ việc"])
+            tt_opts = ["Tất cả"] + sorted([str(x) for x in df['Trang_Thai'].dropna().unique() if str(x).strip() != ''])
+            sel_tt = st.selectbox("Lọc Trạng thái công tác:", tt_opts)
             
         filtered = df.copy()
         if search_kw:
@@ -220,9 +243,9 @@ elif menu == "📋 Tra cứu & Danh sách Hồ sơ":
                 filtered['So_CCHN'].astype(str).str.contains(search_kw, case=False, na=False)
             ]
         if sel_khoa != "Tất cả":
-            filtered = filtered[filtered['Khoa_Phong'] == sel_khoa]
+            filtered = filtered[filtered['Khoa_Phong'].astype(str) == sel_khoa]
         if sel_tt != "Tất cả":
-            filtered = filtered[filtered['Trang_Thai'] == sel_tt]
+            filtered = filtered[filtered['Trang_Thai'].astype(str) == sel_tt]
             
         st.write(f"Hiển thị **{len(filtered)}** / **{len(df)}** hồ sơ nhân sự:")
         st.dataframe(filtered, use_container_width=True)
@@ -253,7 +276,7 @@ elif menu == "➕ Thêm mới Hồ sơ Nhân sự":
             dien_thoai = st.text_input("Số điện thoại:")
             noi_o = st.text_input("Nơi ở hiện nay:")
             suc_khoe = st.text_input("Tình trạng sức khỏe:", value="Tốt")
-            ngay_dang = st.text_input("Ngày vào Đảng (YYYY-MM-DD):", value="Chưa")
+            ngay_dang = st.text_input("Ngày vào Đảng (YYYY-MM-DD hoặc Chưa):", value="Chưa")
             ngay_ngu = st.text_input("Ngày nhập ngũ / Quân hàm:", value="Không")
 
         st.subheader("II. Chức danh, Ngạch bậc & Chuyên môn Y tế")
@@ -285,27 +308,27 @@ elif menu == "➕ Thêm mới Hồ sơ Nhân sự":
         with col9:
             trang_thai = st.selectbox("Trạng thái công tác:", ["Đang làm việc", "Nghỉ thai sản", "Đã nghỉ việc"])
 
-        btn_save = st.form_submit_button("💾 LƯU VÀO CƠ SỞ DỮ LIỆU SQLITE")
+        btn_save = st.form_submit_button("💾 LƯU HỒ SƠ VÀO CSDI")
         
         if btn_save:
             if not ma_nv or not ho_ten:
                 st.error("Vui lòng điền đầy đủ Mã nhân viên và Họ tên!")
             else:
                 new_row = {
-                    "Ma_NV": ma_nv, "Ho_Ten": ho_ten.upper(), "Ten_Goi_Khac": ten_khac,
-                    "Ngay_Sinh": str(ngay_sinh), "Gioi_Tinh": gioi_tinh, "Noi_Sinh": noi_sinh, "Que_Quan": que_quan,
-                    "Dan_Toc": dan_toc, "Ton_Giao": ton_giao, "Noi_O_Hien_Nay": noi_o, "Dien_Thoai": dien_thoai,
-                    "So_CCCD": so_cccd, "Khoa_Phong": khoa_phong, "Chuc_Vu": chuc_vu, "Ngach_Vien_Chuc": ngach,
+                    "Ma_NV": ma_nv.strip(), "Ho_Ten": ho_ten.upper().strip(), "Ten_Goi_Khac": ten_khac.strip(),
+                    "Ngay_Sinh": str(ngay_sinh), "Gioi_Tinh": gioi_tinh, "Noi_Sinh": noi_sinh.strip(), "Que_Quan": que_quan.strip(),
+                    "Dan_Toc": dan_toc.strip(), "Ton_Giao": ton_giao.strip(), "Noi_O_Hien_Nay": noi_o.strip(), "Dien_Thoai": dien_thoai.strip(),
+                    "So_CCCD": so_cccd.strip(), "Khoa_Phong": khoa_phong.strip(), "Chuc_Vu": chuc_vu.strip(), "Ngach_Vien_Chuc": ngach.strip(),
                     "Bac_Luong": bac_luong, "He_So_Luong": he_so_luong, "Ngay_Nang_Luong": pd.to_datetime(ngay_luong),
-                    "Trinh_Do_Giao_Duc": "12/12", "Trinh_Do_Chuyen_Mon": td_chuyen_mon, "Ly_Luan_Chinh_Tri": td_llct,
-                    "Ngoai_Ngu": ngoai_ngu, "Tin_Hoc": tin_hoc, "So_CCHN": so_cchn, "Gio_CME": gio_cme,
-                    "Ngay_Vao_Dang": ngay_dang, "Ngay_Nhap_Ngu": ngay_ngu, "Danh_Hieu_Phong_Tang": danh_hieu,
-                    "Khen_Thuong_Ky_Luat": khen_thuong, "Suc_Khoe_Thuong_Binh": suc_khoe, "Loai_HD": loai_hd,
-                    "Ngay_Het_Han_HD": pd.to_datetime(ngay_hd), "Trang_Thai": trang_thai
+                    "Trinh_Do_Giao_Duc": "12/12", "Trinh_Do_Chuyen_Mon": td_chuyen_mon.strip(), "Ly_Luan_Chinh_Tri": td_llct,
+                    "Ngoai_Ngu": ngoai_ngu.strip(), "Tin_Hoc": tin_hoc.strip(), "So_CCHN": so_cchn.strip(), "Gio_CME": gio_cme,
+                    "Ngay_Vao_Dang": ngay_dang.strip(), "Ngay_Nhap_Ngu": ngay_ngu.strip(), "Danh_Hieu_Phong_Tang": danh_hieu.strip(),
+                    "Khen_Thuong_Ky_Luat": khen_thuong.strip(), "Suc_Khoe_Thuong_Binh": suc_khoe.strip(), "Loai_HD": loai_hd,
+                    "Ngay_Het_Han_HD": pd.to_datetime(ngay_hd), "Trang_Thai": trang_thai.strip()
                 }
                 st.session_state.df_nhansu = pd.concat([st.session_state.df_nhansu, pd.DataFrame([new_row])], ignore_index=True)
                 save_data_to_db(st.session_state.df_nhansu)
-                st.success(f"✅ Đã lưu thành công hồ sơ {ho_ten.upper()} vào CSDL vĩnh viễn!")
+                st.success(f"✅ Đã thêm mới thành công hồ sơ {ho_ten.upper()} vào CSDL!")
 
 # -----------------------------------------------------------------------------
 # MENU 5: CHỈNH SỬA / XÓA HỒ SƠ
@@ -315,7 +338,7 @@ elif menu == "✏️ Chỉnh sửa / Xóa Hồ sơ":
     st.markdown("---")
     
     if df.empty:
-        st.warning("⚠️ Cơ sở dữ liệu hiện chưa có hồ sơ nào để sửa.")
+        st.warning("⚠️ Cơ sở dữ liệu hiện chưa có hồ sơ nào.")
     else:
         selected_id = st.selectbox("🔍 Chọn Mã Nhân Viên hoặc Họ Tên cần thao tác:", df['Ma_NV'].astype(str) + " - " + df['Ho_Ten'].astype(str))
         
@@ -328,56 +351,58 @@ elif menu == "✏️ Chỉnh sửa / Xóa Hồ sơ":
             
             with tab_edit:
                 with st.form("form_edit_emp"):
-                    st.subheader(f"Cập nhật thông tin cán bộ: {emp['Ho_Ten']} ({emp['Ma_NV']})")
+                    st.subheader(f"Cập nhật thông tin: {emp['Ho_Ten']} ({emp['Ma_NV']})")
                     
                     ce1, ce2, ce3 = st.columns(3)
                     with ce1:
-                        e_khoa = st.selectbox("Khoa/Phòng:", KHOA_PHONG_LIST, index=KHOA_PHONG_LIST.index(emp['Khoa_Phong']) if emp['Khoa_Phong'] in KHOA_PHONG_LIST else 0)
+                        e_khoa = st.text_input("Khoa/Phòng:", value=str(emp['Khoa_Phong']))
                         e_chucvu = st.text_input("Chức vụ:", value=str(emp['Chuc_Vu']))
                         e_hsl = st.number_input("Hệ số lương:", value=float(emp['He_So_Luong']) if pd.notnull(emp['He_So_Luong']) else 2.34, step=0.01)
                     with ce2:
                         e_cme = st.number_input("Số giờ CME tích lũy:", value=int(emp['Gio_CME']) if pd.notnull(emp['Gio_CME']) else 0)
                         e_cchn = st.text_input("Số CCHN:", value=str(emp['So_CCHN']))
-                        e_trangthai = st.selectbox("Trạng thái:", ["Đang làm việc", "Nghỉ thai sản", "Đã nghỉ việc"], index=["Đang làm việc", "Nghỉ thai sản", "Đã nghỉ việc"].index(emp['Trang_Thai']) if emp['Trang_Thai'] in ["Đang làm việc", "Nghỉ thai sản", "Đã nghỉ việc"] else 0)
+                        e_dang = st.text_input("Ngày vào Đảng:", value=str(emp['Ngay_Vao_Dang']))
                     with ce3:
+                        e_trangthai = st.text_input("Trạng thái công tác:", value=str(emp['Trang_Thai']))
                         e_luong = st.date_input("Ngày nâng lương tiếp theo:", value=pd.to_datetime(emp['Ngay_Nang_Luong']) if pd.notnull(emp['Ngay_Nang_Luong']) else datetime.now())
                         e_hd = st.date_input("Ngày hết hạn HĐ:", value=pd.to_datetime(emp['Ngay_Het_Han_HD']) if pd.notnull(emp['Ngay_Het_Han_HD']) else datetime.now())
                         
-                    btn_update = st.form_submit_button("💾 CẬP NHẬT & LƯU DB")
+                    btn_update = st.form_submit_button("💾 CẬP NHẬT & LƯU CSDI")
                     
                     if btn_update:
-                        st.session_state.df_nhansu.at[emp_idx, 'Khoa_Phong'] = e_khoa
-                        st.session_state.df_nhansu.at[emp_idx, 'Chuc_Vu'] = e_chucvu
+                        st.session_state.df_nhansu.at[emp_idx, 'Khoa_Phong'] = e_khoa.strip()
+                        st.session_state.df_nhansu.at[emp_idx, 'Chuc_Vu'] = e_chucvu.strip()
                         st.session_state.df_nhansu.at[emp_idx, 'He_So_Luong'] = e_hsl
                         st.session_state.df_nhansu.at[emp_idx, 'Gio_CME'] = e_cme
-                        st.session_state.df_nhansu.at[emp_idx, 'So_CCHN'] = e_cchn
-                        st.session_state.df_nhansu.at[emp_idx, 'Trang_Thai'] = e_trangthai
+                        st.session_state.df_nhansu.at[emp_idx, 'So_CCHN'] = e_cchn.strip()
+                        st.session_state.df_nhansu.at[emp_idx, 'Ngay_Vao_Dang'] = e_dang.strip()
+                        st.session_state.df_nhansu.at[emp_idx, 'Trang_Thai'] = e_trangthai.strip()
                         st.session_state.df_nhansu.at[emp_idx, 'Ngay_Nang_Luong'] = pd.to_datetime(e_luong)
                         st.session_state.df_nhansu.at[emp_idx, 'Ngay_Het_Han_HD'] = pd.to_datetime(e_hd)
                         save_data_to_db(st.session_state.df_nhansu)
-                        st.success("✅ Đã cập nhật thành công dữ liệu vào CSDL!")
+                        st.success("✅ Đã cập nhật thành công dữ liệu!")
                         st.rerun()
                         
             with tab_delete:
-                st.warning(f"⚠️ Bạn có chắc chắn muốn xóa hồ sơ của cán bộ **{emp['Ho_Ten']}** ({emp['Ma_NV']}) khỏi CSDL?")
-                if st.button("❌ XÁC NHẬN XÓA HỒ SƠ NÀY"):
+                st.warning(f"⚠️ Bạn có chắc chắn muốn xóa hồ sơ cán bộ **{emp['Ho_Ten']}** ({emp['Ma_NV']})?")
+                if st.button("❌ XÁC NHẬN XÓA HỒ SƠ"):
                     st.session_state.df_nhansu = st.session_state.df_nhansu.drop(emp_idx).reset_index(drop=True)
                     save_data_to_db(st.session_state.df_nhansu)
-                    st.success("Đã xóa hồ sơ khỏi CSDL thành công!")
+                    st.success("Đã xóa hồ sơ thành công!")
                     st.rerun()
 
 # -----------------------------------------------------------------------------
 # MENU 6: NHẬP / XUẤT EXCEL (MẪU 2C)
 # -----------------------------------------------------------------------------
 elif menu == "📂 Nhập / Xuất Excel (Mẫu 2C)":
-    st.title("📂 ĐỒNG BỘ DỮ LIỆU EXCEL TƯƠNG THÍCH MẪU 2C-BNV/2008")
+    st.title("📂 ĐỒNG BỘ DỮ LIỆU EXCEL MẪU 2C-BNV")
     st.markdown("---")
     
     col_x, col_m = st.columns(2)
     
     with col_x:
         st.subheader("1. Xuất Báo cáo Excel từ CSDL")
-        st.write(f"Hiện có **{len(df)}** hồ sơ đang lưu trong CSDL SQLite:")
+        st.write(f"Đang lưu trữ: **{len(df)}** hồ sơ nhân sự")
         
         output_all = io.BytesIO()
         with pd.ExcelWriter(output_all, engine='openpyxl') as writer:
@@ -391,9 +416,7 @@ elif menu == "📂 Nhập / Xuất Excel (Mẫu 2C)":
         )
 
     with col_m:
-        st.subheader("2. Tải File Excel Mẫu (Template)")
-        st.write("Tải file Excel khung chuẩn 33 trường 2C-BNV để điền dữ liệu:")
-        
+        st.subheader("2. Tải File Excel Mẫu Chuẩn")
         sample_data = [{
             "Ma_NV": "BV0001", "Ho_Ten": "NGUYỄN VĂN AN", "Ten_Goi_Khac": "Không", 
             "Ngay_Sinh": "1980-05-15", "Gioi_Tinh": "Nam", "Noi_Sinh": "Hà Nội", "Que_Quan": "Nam Định",
@@ -419,8 +442,8 @@ elif menu == "📂 Nhập / Xuất Excel (Mẫu 2C)":
         )
         
     st.markdown("---")
-    st.subheader("3. Nạp File Excel 835 Hồ Sơ Vào Cơ Sở Dữ Liệu SQLITE (Lưu Vĩnh Viễn)")
-    uploaded_file = st.file_uploader("Upload file Excel (.xlsx) chứa 835 nhân sự", type=["xlsx", "csv"])
+    st.subheader("3. Nạp File Excel Nhân Sự Đã Điền Vào CSDL")
+    uploaded_file = st.file_uploader("Upload file Excel (.xlsx) chứa dữ liệu nhân sự", type=["xlsx", "csv"])
     
     if uploaded_file is not None:
         try:
@@ -429,15 +452,14 @@ elif menu == "📂 Nhập / Xuất Excel (Mẫu 2C)":
             else:
                 df_upload = pd.read_excel(uploaded_file)
                 
-            st.success(f"Đã đọc thành công {len(df_upload)} hồ sơ từ file upload!")
+            st.success(f"Đã đọc thành công {len(df_upload)} hồ sơ từ file!")
             st.dataframe(df_upload.head(5))
             
-            if st.button("🚀 NẠP VÀ LƯU VĨNH VIỄN VÀO CƠ SỞ DỮ LIỆU SQLITE"):
-                df_upload['Ngay_Nang_Luong'] = pd.to_datetime(df_upload['Ngay_Nang_Luong'], errors='coerce')
-                df_upload['Ngay_Het_Han_HD'] = pd.to_datetime(df_upload['Ngay_Het_Han_HD'], errors='coerce')
-                st.session_state.df_nhansu = df_upload
-                save_data_to_db(df_upload)
-                st.success(f"✅ ĐÃ LƯU THÀNH CÔNG {len(df_upload)} HỒ SƠ VÀO CSDI! Từ nay khi thoát ứng dụng ra dữ liệu vẫn nguyên vẹn.")
+            if st.button("🚀 XÁC NHẬN NẠP VÀ LƯU VÀO CƠ SỞ DỮ LIỆU"):
+                df_cleaned = clean_dataframe(df_upload)
+                st.session_state.df_nhansu = df_cleaned
+                save_data_to_db(df_cleaned)
+                st.success(f"✅ ĐÃ NẠP & CHUẨN HÓA THÀNH CÔNG {len(df_cleaned)} HỒ SƠ VÀO CSDI!")
                 st.rerun()
         except Exception as e:
             st.error(f"Lỗi nạp file: {e}")
@@ -448,17 +470,15 @@ elif menu == "📂 Nhập / Xuất Excel (Mẫu 2C)":
 elif menu == "⚙️ Thiết lập Hệ thống":
     st.title("⚙️ THIẾT LẬP HỆ THỐNG & CƠ SỞ DỮ LIỆU")
     st.markdown("---")
-    
-    st.subheader("1. Thông tin Cơ sở dữ liệu hiện tại")
-    st.info(f"📁 Tên file CSDL SQLite: `{DB_FILE}` | Tổng số hồ sơ đang lưu trữ: **{len(df)}** nhân sự")
+    st.subheader("1. Thông tin CSDL SQLite")
+    st.info(f"📁 Tên file DB: `{DB_FILE}` | Tổng số bản ghi: **{len(df)}**")
     
     st.markdown("---")
-    st.subheader("2. Xóa toàn bộ dữ liệu CSDL (Reset)")
-    st.warning("⚠️ Thao tác này sẽ xóa sạch toàn bộ CSDL SQLite về 0 hồ sơ.")
+    st.subheader("2. Xóa toàn bộ dữ liệu (Reset)")
     if st.button("🗑️ XÓA TOÀN BỘ CƠ SỞ DỮ LIỆU"):
         if os.path.exists(DB_FILE):
             os.remove(DB_FILE)
         init_sqlite_db()
         st.session_state.df_nhansu = pd.DataFrame()
-        st.success("Đã xóa toàn bộ CSDL SQLite thành công!")
+        st.success("Đã xóa CSDL thành công!")
         st.rerun()
