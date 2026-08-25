@@ -64,15 +64,13 @@ def clean_dataframe(df_in):
     if df_in.empty:
         return df_in
     df_clean = df_in.copy()
-    # Xóa khoảng trắng thừa ở tất cả cột dạng chuỗi (Text)
     for col in df_clean.select_dtypes(include=['object']).columns:
         df_clean[col] = df_clean[col].astype(str).str.strip()
-        # Chuyển các chuỗi 'nan', 'None' về định dạng chuẩn
         df_clean[col] = df_clean[col].replace({'nan': '', 'None': '', 'NaN': ''})
     
-    # Ép kiểu dữ liệu ngày tháng
     df_clean['Ngay_Nang_Luong'] = pd.to_datetime(df_clean['Ngay_Nang_Luong'], errors='coerce')
     df_clean['Ngay_Het_Han_HD'] = pd.to_datetime(df_clean['Ngay_Het_Han_HD'], errors='coerce')
+    df_clean['Ngay_Sinh_DT'] = pd.to_datetime(df_clean['Ngay_Sinh'], errors='coerce')
     return df_clean
 
 # Đọc dữ liệu từ SQLite
@@ -82,16 +80,18 @@ def load_data_from_db():
     conn.close()
     return clean_dataframe(df_loaded)
 
-# Ghi/Ghi đè dữ liệu vào SQLite
+# Ghi dữ liệu vào SQLite
 def save_data_to_db(df_to_save):
     conn = sqlite3.connect(DB_FILE)
     df_temp = clean_dataframe(df_to_save)
+    if 'Ngay_Sinh_DT' in df_temp.columns:
+        df_temp = df_temp.drop(columns=['Ngay_Sinh_DT'])
     df_temp['Ngay_Nang_Luong'] = df_temp['Ngay_Nang_Luong'].astype(str)
     df_temp['Ngay_Het_Han_HD'] = df_temp['Ngay_Het_Han_HD'].astype(str)
     df_temp.to_sql('nhansu', conn, if_exists='replace', index=False)
     conn.close()
 
-# Khởi tạo DB
+# Khởi tạo CSDL
 init_sqlite_db()
 
 if 'df_nhansu' not in st.session_state:
@@ -100,18 +100,24 @@ if 'df_nhansu' not in st.session_state:
 df = st.session_state.df_nhansu
 today = pd.to_datetime(datetime.now().date())
 
-# Danh mục Khoa/Phòng
-KHOA_PHONG_LIST = [
-    "Khoa Cấp cứu", "Khoa Khám bệnh", "Khoa Nội tổng hợp", "Khoa Ngoại tổng hợp",
-    "Khoa Nhi", "Khoa Phụ sản", "Khoa Hồi sức tích cực", "Khoa Dược",
-    "Khoa Xét nghiệm", "Khoa Chẩn đoán hình ảnh", "Phòng Tổ chức cán bộ",
-    "Phòng Kế hoạch tổng hợp", "Phòng Tài chính kế toán", "Phòng Điều dưỡng"
-]
+# Các trường hỗ trợ phân loại thống kê dựa trên mẫu 2C-BNV
+COLUMNS_2C_DICT = {
+    "Khoa_Phong": "Khoa / Phòng làm việc",
+    "Trinh_Do_Chuyen_Mon": "Trình độ chuyên môn",
+    "Chuc_Vu": "Chức vụ công tác",
+    "Trang_Thai": "Trạng thái công tác",
+    "Gioi_Tinh": "Giới tính",
+    "Dan_Toc": "Dân tộc",
+    "Loai_HD": "Loại Hợp đồng lao động",
+    "Ly_Luan_Chinh_Tri": "Lý luận chính trị",
+    "Ngach_Vien_Chuc": "Ngạch viên chức",
+    "Bac_Luong": "Bậc lương"
+}
 
 # 3. THANH MENU ĐIỀU HƯỚNG CHÍNH
 st.sidebar.image("https://img.icons8.com/color/96/hospital-2.png", width=80)
 st.sidebar.title("QUẢN LÝ NHÂN SỰ")
-st.sidebar.caption("Phiên bản đã sửa lỗi Đếm Đảng viên & Trạng thái")
+st.sidebar.caption("Giao diện Trang chủ Cảnh báo & Thống kê 2C")
 
 menu = st.sidebar.radio(
     "DANH MỤC CHỨC NĂNG", 
@@ -127,22 +133,19 @@ menu = st.sidebar.radio(
 )
 
 # -----------------------------------------------------------------------------
-# MENU 1: TRANG CHỦ & TỔNG QUAN
+# MENU 1: TRANG CHỦ & TỔNG QUAN (ĐÃ CẬP NHẬT THEO YÊU CẦU)
 # -----------------------------------------------------------------------------
 if menu == "🏠 Trang chủ & Tổng quan":
     st.title("🏥 HỆ THỐNG QUẢN LÝ NHÂN SỰ BỆNH VIỆN")
-    st.markdown("### **Trang chủ & Báo cáo Thống kê Tổng hợp**")
     st.markdown("---")
     
+    # 1. HÀNG CHỈ SỐ NHANH
     col1, col2, col3, col4 = st.columns(4)
     col1.metric("Tổng số Nhân sự", f"{len(df)} người")
     
     if not df.empty:
         bs_count = len(df[df['Trinh_Do_Chuyen_Mon'].astype(str).str.contains('Bác sĩ|Dược sĩ', case=False, na=False)])
         dd_count = len(df[df['Trinh_Do_Chuyen_Mon'].astype(str).str.contains('Điều dưỡng|Kỹ thuật viên', case=False, na=False)])
-        
-        # LOGIC ĐẾM SỐ ĐẢNG VIÊN ĐÃ ĐƯỢC CẢI TIẾN CHUẨN XÁC
-        # Lọc ra những người có điền thông tin Ngày vào Đảng (khác trống, khác 'Chưa', 'Không', '0', '-')
         dang_vien_df = df[
             df['Ngay_Vao_Dang'].notnull() & 
             ~df['Ngay_Vao_Dang'].astype(str).str.strip().str.lower().isin(['chưa', 'khong', 'không', '0', '-', '', 'none', 'nan'])
@@ -156,28 +159,97 @@ if menu == "🏠 Trang chủ & Tổng quan":
     col4.metric("Đảng viên", f"{dv_count} người")
 
     st.markdown("---")
-    c_left, c_right = st.columns(2)
     
-    with c_left:
-        st.subheader("📊 Thống kê Nhân sự theo Khoa / Phòng")
-        if not df.empty and 'Khoa_Phong' in df.columns:
-            df_khoa = df['Khoa_Phong'].value_counts().reset_index()
-            df_khoa.columns = ['Khoa / Phòng', 'Số lượng (người)']
-            st.dataframe(df_khoa, use_container_width=True)
+    # BỐ CỤC MỚI: BÊN TRÁI THỐNG KÊ CHI TIẾT - BÊN PHẢI CẢNH BÁO
+    left_col, right_col = st.columns([1.2, 1.0])
+    
+    # ------------------ BÊN TRÁI: THỐNG KÊ PHÂN LOẠI CHI TIẾT ------------------
+    with left_col:
+        st.subheader("📊 BÁO CÁO THỐNG KÊ CHI TIẾT HỒ SƠ 2C-BNV")
+        
+        selected_field = st.selectbox(
+            "📌 Chọn chỉ số/trường dữ liệu mẫu 2C-BNV cần phân loại thống kê:",
+            options=list(COLUMNS_2C_DICT.keys()),
+            format_func=lambda x: COLUMNS_2C_DICT[x]
+        )
+        
+        if not df.empty and selected_field in df.columns:
+            # Tạo bảng thống kê chỉ số
+            df_stat = df[selected_field].astype(str).replace({'': 'Chưa cập nhật', 'nan': 'Chưa cập nhật'}).value_counts().reset_index()
+            df_stat.columns = [COLUMNS_2C_DICT[selected_field], 'Số lượng (người)']
             
-    with c_right:
-        st.subheader("📌 Thống kê Nhân sự theo Trạng thái công tác")
-        if not df.empty and 'Trang_Thai' in df.columns:
-            df_tt = df['Trang_Thai'].value_counts().reset_index()
-            df_tt.columns = ['Trạng thái', 'Số lượng (người)']
-            st.dataframe(df_tt, use_container_width=True)
+            # Tính % tỷ lệ
+            total_emp = len(df)
+            df_stat['Tỷ lệ (%)'] = (df_stat['Số lượng (người)'] / total_emp * 100).round(1).astype(str) + " %"
+            
+            st.dataframe(df_stat, use_container_width=True, height=380)
+        else:
+            st.info("Chưa có dữ liệu để lập báo cáo thống kê.")
+
+    # ------------------ BÊN PHẢI: MÀN HÌNH CẢNH BÁO TỰ ĐỘNG ------------------
+    with right_col:
+        st.subheader("🔔 TRUNG TÂM CẢNH BÁO TỰ ĐỘNG")
+        
+        # Xử lý tính toán cảnh báo
+        if not df.empty:
+            df_luong = df[(df['Ngay_Nang_Luong'] >= today) & (df['Ngay_Nang_Luong'] <= today + timedelta(days=60))]
+            df_hd = df[(df['Ngay_Het_Han_HD'] >= today) & (df['Ngay_Het_Han_HD'] <= today + timedelta(days=30))]
+            
+            # Tính toán sinh nhật tháng tiếp theo
+            next_month = (today.month % 12) + 1
+            if 'Ngay_Sinh_DT' in df.columns:
+                df_sn = df[df['Ngay_Sinh_DT'].dt.month == next_month]
+            else:
+                df['Ngay_Sinh_DT'] = pd.to_datetime(df['Ngay_Sinh'], errors='coerce')
+                df_sn = df[df['Ngay_Sinh_DT'].dt.month == next_month]
+        else:
+            df_luong, df_hd, df_sn = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+
+        # Tạo Tabs cảnh báo gọn gàng ở cột bên phải
+        t1, t2, t3 = st.tabs([
+            f"📈 Nâng lương ({len(df_luong)})", 
+            f"📄 Hợp đồng ({len(df_hd)})", 
+            f"🎂 Sinh nhật T{next_month} ({len(df_sn)})"
+        ])
+        
+        with t1:
+            st.caption("Cán bộ sắp đến hạn nâng bậc lương trong 60 ngày tới:")
+            if not df_luong.empty:
+                st.dataframe(
+                    df_luong[['Ma_NV', 'Ho_Ten', 'Khoa_Phong', 'Ngay_Nang_Luong']], 
+                    use_container_width=True, 
+                    height=300
+                )
+            else:
+                st.success("Không có ai sắp nâng lương trong 60 ngày tới.")
+                
+        with t2:
+            st.caption("Hợp đồng lao động sắp hết hạn trong 30 ngày tới:")
+            if not df_hd.empty:
+                st.dataframe(
+                    df_hd[['Ma_NV', 'Ho_Ten', 'Khoa_Phong', 'Loai_HD', 'Ngay_Het_Han_HD']], 
+                    use_container_width=True, 
+                    height=300
+                )
+            else:
+                st.success("Không có hợp đồng lao động nào sắp hết hạn.")
+                
+        with t3:
+            st.caption(f"Danh sách nhân sự có sinh nhật trong tháng {next_month}:")
+            if not df_sn.empty:
+                st.dataframe(
+                    df_sn[['Ma_NV', 'Ho_Ten', 'Khoa_Phong', 'Ngay_Sinh']], 
+                    use_container_width=True, 
+                    height=300
+                )
+            else:
+                st.info(f"Không có nhân sự nào sinh nhật trong tháng {next_month}.")
 
 # -----------------------------------------------------------------------------
 # MENU 2: TRUNG TÂM CẢNH BÁO TỰ ĐỘNG
 # -----------------------------------------------------------------------------
 elif menu == "🔔 Trung tâm Cảnh báo Tự động":
-    st.title("🔔 TRUNG TÂM CẢNH BÁO TỰ ĐỘNG")
-    st.caption("Cảnh báo thời hạn Nâng lương, Hợp đồng lao động và Giờ đào tạo liên tục (CME)")
+    st.title("🔔 TRUNG TÂM CẢNH BÁO TỰ ĐỘNG CHI TIẾT")
     st.markdown("---")
     
     if not df.empty:
@@ -282,7 +354,7 @@ elif menu == "➕ Thêm mới Hồ sơ Nhân sự":
         st.subheader("II. Chức danh, Ngạch bậc & Chuyên môn Y tế")
         col4, col5, col6 = st.columns(3)
         with col4:
-            khoa_phong = st.selectbox("Khoa / Phòng làm việc:", KHOA_PHONG_LIST)
+            khoa_phong = st.text_input("Khoa / Phòng làm việc:")
             chuc_vu = st.text_input("Chức vụ:", value="Nhiệm vụ chuyên môn")
             ngach = st.text_input("Ngạch viên chức:")
             td_chuyen_mon = st.text_input("Trình độ chuyên môn (BS/ĐD/Dược sĩ...):")
@@ -459,7 +531,7 @@ elif menu == "📂 Nhập / Xuất Excel (Mẫu 2C)":
                 df_cleaned = clean_dataframe(df_upload)
                 st.session_state.df_nhansu = df_cleaned
                 save_data_to_db(df_cleaned)
-                st.success(f"✅ ĐÃ NẠP & CHUẨN HÓA THÀNH CÔNG {len(df_cleaned)} HỒ SƠ VÀO CSDI!")
+                st.success(f"✅ ĐÃ NẠP THÀNH CÔNG {len(df_cleaned)} HỒ SƠ VÀO CSDI!")
                 st.rerun()
         except Exception as e:
             st.error(f"Lỗi nạp file: {e}")
