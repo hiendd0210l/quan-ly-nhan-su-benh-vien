@@ -14,7 +14,7 @@ st.set_page_config(
 st.title("🎂 HỆ THỐNG QUẢN LÝ NHÂN SỰ & LỌC SINH NHẬT")
 
 # ==========================================
-# 2. KHỞI TẠO DỮ LIỆU NHÂN SỰ
+# 2. KHỞI TẠO VÀ CHUẨN HÓA DỮ LIỆU NHÂN SỰ
 # ==========================================
 if 'df_nhansu' not in st.session_state:
     sample_data = [
@@ -31,14 +31,21 @@ if 'df_nhansu' not in st.session_state:
 
 df = st.session_state.df_nhansu.copy()
 
-# Chuẩn hóa cột ngày sinh về định dạng ngày tháng
-df['Ngay_Sinh_DT'] = pd.to_datetime(df['Ngay_Sinh'], dayfirst=True, errors='coerce')
+# --------------------------------------------------------------------------
+# CHUẨN HÓA NGÀY SINH THEO ĐÚNG THỨ TỰ NGÀY/THÁNG/NĂM (dd/mm/yyyy)
+# Tham số dayfirst=True bắt buộc Pandas hiểu con số đầu tiên là NGÀY, tránh bị đảo với THÁNG
+# --------------------------------------------------------------------------
+df['Ngay_Sinh_DT'] = pd.to_datetime(df['Ngay_Sinh'], format='%d/%m/%Y', errors='coerce')
+# Trường hợp định dạng chuỗi linh hoạt hơn:
+# df['Ngay_Sinh_DT'] = pd.to_datetime(df['Ngay_Sinh'], dayfirst=True, errors='coerce')
+
 df['Thang_Sinh'] = df['Ngay_Sinh_DT'].dt.month
+df['Ngay_Trong_Thang'] = df['Ngay_Sinh_DT'].dt.day
 
 # ==========================================
-# 3. DANH MỤC CHỨC NĂNG (SIDEBAR)
+# 3. SIDEBAR MENUS
 # ==========================================
-st.sidebar.title("📌 MENUS")
+st.sidebar.title("📌 MENU")
 menu = st.sidebar.radio(
     "Chọn chức năng:",
     [
@@ -55,13 +62,16 @@ if menu == "🎂 Lọc Sinh nhật theo Tháng":
     
     selected_month = st.selectbox("Chọn tháng cần lọc:", range(1, 13), index=8) # Mặc định Tháng 9
     
-    # Thực hiện lọc theo tháng sinh
+    # Lọc nhân sự có tháng sinh khớp với tháng chọn
     df_filtered = df[df['Thang_Sinh'] == selected_month].copy()
+    
+    # Sắp xếp danh sách theo đúng thứ tự NGÀY SINH tăng dần trong tháng (1 -> 31)
+    df_filtered = df_filtered.sort_values(by='Ngay_Trong_Thang')
     
     st.info(f"Tổng số nhân sự sinh nhật trong **Tháng {selected_month}**: **{len(df_filtered)} người**")
     
     if not df_filtered.empty:
-        # Hiển thị bảng danh sách
+        # Hiển thị bảng kết quả đã lọc và sắp xếp đúng
         st.dataframe(
             df_filtered[['Ma_NV', 'Ho_Ten', 'Ngay_Sinh', 'Gioi_Tinh', 'Khoa_Phong', 'Chuc_Vu']],
             use_container_width=True,
@@ -93,12 +103,12 @@ elif menu == "📂 Quản lý Danh sách Nhân sự":
     st.dataframe(st.session_state.df_nhansu, use_container_width=True, hide_index=True)
     
     st.markdown("---")
-    st.write("**Thêm nhân sự mới:**")
+    st.write("**Thêm nhân sự mới (Định dạng ngày sinh bắt buộc: dd/mm/yyyy):**")
     with st.form("add_employee_form"):
         c1, c2, c3 = st.columns(3)
-        ma_nv = c1.text_input("Mã Nhân viên")
+        ma_nv = c1.text_input("Mã Nhân viên", placeholder="VD: N1234")
         ho_ten = c2.text_input("Họ và tên")
-        ngay_sinh = c3.text_input("Ngày sinh (dd/mm/yyyy)")
+        ngay_sinh = c3.text_input("Ngày sinh (dd/mm/yyyy)", placeholder="VD: 05/09/1992")
         
         c4, c5, c6 = st.columns(3)
         gioi_tinh = c4.selectbox("Giới tính", ["Nam", "Nữ"])
@@ -108,16 +118,21 @@ elif menu == "📂 Quản lý Danh sách Nhân sự":
         submit = st.form_submit_button("Thêm vào danh sách")
         if submit:
             if ma_nv and ho_ten and ngay_sinh:
-                new_data = {
-                    "Ma_NV": ma_nv.strip().upper(),
-                    "Ho_Ten": ho_ten.strip(),
-                    "Ngay_Sinh": ngay_sinh.strip(),
-                    "Gioi_Tinh": gioi_tinh,
-                    "Khoa_Phong": khoa_phong.strip(),
-                    "Chuc_Vu": chuc_vu.strip()
-                }
-                st.session_state.df_nhansu = pd.concat([st.session_state.df_nhansu, pd.DataFrame([new_data])], ignore_index=True)
-                st.success(f"Đã thêm thành công nhân sự {ho_ten}!")
-                st.rerun()
+                # Kiểm tra định dạng ngày sinh nhập vào
+                try:
+                    pd.to_datetime(ngay_sinh.strip(), format='%d/%m/%Y')
+                    new_data = {
+                        "Ma_NV": ma_nv.strip().upper(),
+                        "Ho_Ten": ho_ten.strip(),
+                        "Ngay_Sinh": ngay_sinh.strip(),
+                        "Gioi_Tinh": gioi_tinh,
+                        "Khoa_Phong": khoa_phong.strip(),
+                        "Chuc_Vu": chuc_vu.strip()
+                    }
+                    st.session_state.df_nhansu = pd.concat([st.session_state.df_nhansu, pd.DataFrame([new_data])], ignore_index=True)
+                    st.success(f"Đã thêm thành công nhân sự {ho_ten}!")
+                    st.rerun()
+                except ValueError:
+                    st.error("Ngày sinh không đúng định dạng **dd/mm/yyyy** (Ví dụ hợp lệ: 05/09/1990)!")
             else:
                 st.error("Vui lòng điền đầy đủ Mã NV, Họ tên và Ngày sinh!")
