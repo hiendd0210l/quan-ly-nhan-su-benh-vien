@@ -59,6 +59,10 @@ def init_sqlite_db():
     conn.commit()
     conn.close()
 
+# Hàm ép kiểu ngày tháng an toàn theo chuẩn Việt Nam (Ngày/Tháng/Năm)
+def parse_date_vietnam(series):
+    return pd.to_datetime(series, dayfirst=True, errors='coerce')
+
 # Hàm làm sạch & chuẩn hóa dữ liệu DataFrame
 def clean_dataframe(df_in):
     if df_in.empty:
@@ -68,9 +72,17 @@ def clean_dataframe(df_in):
         df_clean[col] = df_clean[col].astype(str).str.strip()
         df_clean[col] = df_clean[col].replace({'nan': '', 'None': '', 'NaN': ''})
     
-    df_clean['Ngay_Nang_Luong'] = pd.to_datetime(df_clean['Ngay_Nang_Luong'], errors='coerce')
-    df_clean['Ngay_Het_Han_HD'] = pd.to_datetime(df_clean['Ngay_Het_Han_HD'], errors='coerce')
-    df_clean['Ngay_Sinh_DT'] = pd.to_datetime(df_clean['Ngay_Sinh'], errors='coerce')
+    # Ép kiểu dữ liệu ngày tháng ưu tiên Ngày/Tháng/Năm (dayfirst=True)
+    df_clean['Ngay_Nang_Luong'] = parse_date_vietnam(df_clean['Ngay_Nang_Luong'])
+    df_clean['Ngay_Het_Han_HD'] = parse_date_vietnam(df_clean['Ngay_Het_Han_HD'])
+    
+    # Chuẩn hóa cột Ngay_Sinh
+    df_clean['Ngay_Sinh_DT'] = parse_date_vietnam(df_clean['Ngay_Sinh'])
+    # Tạo thêm cột chuỗi hiển thị chuẩn Ngày/Tháng/Năm
+    valid_dates = df_clean['Ngay_Sinh_DT'].notnull()
+    df_clean.loc[valid_dates, 'Ngay_Sinh_HienThi'] = df_clean.loc[valid_dates, 'Ngay_Sinh_DT'].dt.strftime('%d/%m/%Y')
+    df_clean.loc[~valid_dates, 'Ngay_Sinh_HienThi'] = df_clean.loc[~valid_dates, 'Ngay_Sinh']
+    
     return df_clean
 
 # Đọc dữ liệu từ SQLite
@@ -84,10 +96,13 @@ def load_data_from_db():
 def save_data_to_db(df_to_save):
     conn = sqlite3.connect(DB_FILE)
     df_temp = clean_dataframe(df_to_save)
-    if 'Ngay_Sinh_DT' in df_temp.columns:
-        df_temp = df_temp.drop(columns=['Ngay_Sinh_DT'])
-    df_temp['Ngay_Nang_Luong'] = df_temp['Ngay_Nang_Luong'].astype(str)
-    df_temp['Ngay_Het_Han_HD'] = df_temp['Ngay_Het_Han_HD'].astype(str)
+    
+    # Loại bỏ các cột tạm trước khi lưu vào SQLite
+    cols_to_drop = [c for c in ['Ngay_Sinh_DT', 'Ngay_Sinh_HienThi'] if c in df_temp.columns]
+    df_temp = df_temp.drop(columns=cols_to_drop)
+    
+    df_temp['Ngay_Nang_Luong'] = df_temp['Ngay_Nang_Luong'].dt.strftime('%Y-%m-%d')
+    df_temp['Ngay_Het_Han_HD'] = df_temp['Ngay_Het_Han_HD'].dt.strftime('%Y-%m-%d')
     df_temp.to_sql('nhansu', conn, if_exists='replace', index=False)
     conn.close()
 
@@ -258,11 +273,9 @@ if menu == "🏠 Trang chủ & Tổng quan":
             df_hd = df[(df['Ngay_Het_Han_HD'] >= today) & (df['Ngay_Het_Han_HD'] <= today + timedelta(days=30))]
             
             next_month = (today.month % 12) + 1
-            if 'Ngay_Sinh_DT' in df.columns:
-                df_sn = df[df['Ngay_Sinh_DT'].dt.month == next_month]
-            else:
-                df['Ngay_Sinh_DT'] = pd.to_datetime(df['Ngay_Sinh'], errors='coerce')
-                df_sn = df[df['Ngay_Sinh_DT'].dt.month == next_month]
+            if 'Ngay_Sinh_DT' not in df.columns:
+                df['Ngay_Sinh_DT'] = parse_date_vietnam(df['Ngay_Sinh'])
+            df_sn = df[df['Ngay_Sinh_DT'].dt.month == next_month]
         else:
             df_luong, df_hd, df_sn = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
@@ -297,8 +310,11 @@ if menu == "🏠 Trang chủ & Tổng quan":
         with t3:
             st.caption(f"Danh sách nhân sự có sinh nhật trong tháng {next_month}:")
             if not df_sn.empty:
+                display_sn = df_sn.copy()
+                if 'Ngay_Sinh_HienThi' in display_sn.columns:
+                    display_sn['Ngay_Sinh'] = display_sn['Ngay_Sinh_HienThi']
                 st.dataframe(
-                    df_sn[['Ma_NV', 'Ho_Ten', 'Khoa_Phong', 'Ngay_Sinh']], 
+                    display_sn[['Ma_NV', 'Ho_Ten', 'Khoa_Phong', 'Ngay_Sinh']], 
                     use_container_width=True, 
                     height=320
                 )
@@ -347,7 +363,7 @@ elif menu == "🔔 Trung tâm Cảnh báo Tự động":
             st.info("Tất cả nhân sự đã đạt đủ tiêu chuẩn giờ CME.")
 
 # -----------------------------------------------------------------------------
-# MENU 3: TRA CỨU & DANH SÁCH HỒ SƠ (CẬP NHẬT LỌC THEO THÁNG SINH)
+# MENU 3: TRA CỨU & DANH SÁCH HỒ SƠ (ĐÃ ĐIỀU CHỈNH CHUẨN NGÀY/THÁNG/NĂM)
 # -----------------------------------------------------------------------------
 elif menu == "📋 Tra cứu & Danh sách Hồ sơ":
     st.title("📋 TRA CỨU & QUẢN LÝ DANH SÁCH HỒ SƠ 2C-BNV")
@@ -356,7 +372,6 @@ elif menu == "📋 Tra cứu & Danh sách Hồ sơ":
     if df.empty:
         st.warning("⚠️ Cơ sở dữ liệu hiện chưa có hồ sơ nhân sự nào. Vui lòng nạp file Excel vào hệ thống.")
     else:
-        # Bố trí 4 cột bộ lọc: Từ khóa | Khoa/Phòng | Trạng thái | Tháng sinh
         c_search, c_khoa, c_tt, c_sn = st.columns([2, 1, 1, 1])
         
         with c_search:
@@ -373,7 +388,7 @@ elif menu == "📋 Tra cứu & Danh sách Hồ sơ":
             
         filtered = df.copy()
         
-        # 1. Lọc theo từ khóa
+        # Lọc từ khóa
         if search_kw:
             filtered = filtered[
                 filtered['Ho_Ten'].astype(str).str.contains(search_kw, case=False, na=False) |
@@ -382,28 +397,32 @@ elif menu == "📋 Tra cứu & Danh sách Hồ sơ":
                 filtered['So_CCHN'].astype(str).str.contains(search_kw, case=False, na=False)
             ]
             
-        # 2. Lọc theo Khoa / Phòng
+        # Lọc Khoa / Phòng
         if sel_khoa != "Tất cả":
             filtered = filtered[filtered['Khoa_Phong'].astype(str) == sel_khoa]
             
-        # 3. Lọc theo Trạng thái công tác
+        # Lọc Trạng thái công tác
         if sel_tt != "Tất cả":
             filtered = filtered[filtered['Trang_Thai'].astype(str) == sel_tt]
             
-        # 4. Lọc theo Tháng sinh
+        # Lọc Tháng sinh theo chuẩn Ngày/Tháng/Năm
         if sel_month != "Tất cả":
             selected_m = int(sel_month.replace("Tháng ", ""))
-            if 'Ngay_Sinh_DT' not in filtered.columns:
-                filtered['Ngay_Sinh_DT'] = pd.to_datetime(filtered['Ngay_Sinh'], errors='coerce')
+            # Ép kiểu chuẩn Ngày/Tháng/Năm (dayfirst=True)
+            filtered['Ngay_Sinh_DT'] = parse_date_vietnam(filtered['Ngay_Sinh'])
             filtered = filtered[filtered['Ngay_Sinh_DT'].dt.month == selected_m]
             
         st.write(f"Hiển thị **{len(filtered)}** / **{len(df)}** hồ sơ nhân sự:")
         
-        # Hiển thị cột ngày sinh rõ ràng hơn khi có lọc
+        # Hiển thị ngày sinh theo định dạng DD/MM/YYYY
+        display_df = filtered.copy()
+        if 'Ngay_Sinh_HienThi' in display_df.columns:
+            display_df['Ngay_Sinh'] = display_df['Ngay_Sinh_HienThi']
+            
         display_cols = ['Ma_NV', 'Ho_Ten', 'Ngay_Sinh', 'Gioi_Tinh', 'Khoa_Phong', 'Chuc_Vu', 'Trinh_Do_Chuyen_Mon', 'Trang_Thai']
-        valid_cols = [c for c in display_cols if c in filtered.columns]
+        valid_cols = [c for c in display_cols if c in display_df.columns]
         
-        st.dataframe(filtered[valid_cols] if not filtered.empty else filtered, use_container_width=True)
+        st.dataframe(display_df[valid_cols] if not display_df.empty else display_df, use_container_width=True)
 
 # -----------------------------------------------------------------------------
 # MENU 4: THÊM MỚI HỒ SƠ NHÂN SỰ
@@ -419,7 +438,7 @@ elif menu == "➕ Thêm mới Hồ sơ Nhân sự":
             ma_nv = st.text_input("Mã Nhân viên (*):", value=f"BV{len(df)+1:04d}")
             ho_ten = st.text_input("Họ và Tên khai sinh (*):")
             ten_khac = st.text_input("Tên gọi khác / Bí danh:", value="Không")
-            ngay_sinh = st.date_input("Ngày sinh:", value=datetime(1990, 1, 1))
+            ngay_sinh = st.date_input("Ngày sinh:", value=datetime(1990, 1, 1), format="DD/MM/YYYY")
             gioi_tinh = st.selectbox("Giới tính:", ["Nam", "Nữ"])
         with col2:
             so_cccd = st.text_input("Số CCCD / CMND (*):")
@@ -431,7 +450,7 @@ elif menu == "➕ Thêm mới Hồ sơ Nhân sự":
             dien_thoai = st.text_input("Số điện thoại:")
             noi_o = st.text_input("Nơi ở hiện nay:")
             suc_khoe = st.text_input("Tình trạng sức khỏe:", value="Tốt")
-            ngay_dang = st.text_input("Ngày vào Đảng (YYYY-MM-DD hoặc Chưa):", value="Chưa")
+            ngay_dang = st.text_input("Ngày vào Đảng (DD/MM/YYYY hoặc Chưa):", value="Chưa")
             ngay_ngu = st.text_input("Ngày nhập ngũ / Quân hàm:", value="Không")
 
         st.subheader("II. Chức danh, Ngạch bậc & Chuyên môn Y tế")
@@ -444,7 +463,7 @@ elif menu == "➕ Thêm mới Hồ sơ Nhân sự":
         with col5:
             bac_luong = st.number_input("Bậc lương:", min_value=1, max_value=12, value=1)
             he_so_luong = st.number_input("Hệ số lương:", min_value=1.0, max_value=10.0, value=2.34, step=0.01)
-            ngay_luong = st.date_input("Ngày nâng lương tiếp theo:", value=datetime.now() + timedelta(days=1095))
+            ngay_luong = st.date_input("Ngày nâng lương tiếp theo:", value=datetime.now() + timedelta(days=1095), format="DD/MM/YYYY")
             so_cchn = st.text_input("Số Chứng chỉ hành nghề (CCHN):")
         with col6:
             gio_cme = st.number_input("Số tiết CME lũy kế:", min_value=0, max_value=300, value=0)
@@ -456,7 +475,7 @@ elif menu == "➕ Thêm mới Hồ sơ Nhân sự":
         col7, col8, col9 = st.columns(3)
         with col7:
             loai_hd = st.selectbox("Loại Hợp đồng:", ["Thử việc", "Xác định thời hạn", "Không xác định thời hạn"])
-            ngay_hd = st.date_input("Ngày hết hạn HĐ:", value=datetime.now() + timedelta(days=365))
+            ngay_hd = st.date_input("Ngày hết hạn HĐ:", value=datetime.now() + timedelta(days=365), format="DD/MM/YYYY")
         with col8:
             khen_thuong = st.text_input("Khen thưởng / Kỷ luật:", value="Không")
             danh_hieu = st.text_input("Danh hiệu phong tặng:", value="Không")
@@ -469,9 +488,10 @@ elif menu == "➕ Thêm mới Hồ sơ Nhân sự":
             if not ma_nv or not ho_ten:
                 st.error("Vui lòng điền đầy đủ Mã nhân viên và Họ tên!")
             else:
+                str_ngay_sinh = ngay_sinh.strftime('%d/%m/%Y')
                 new_row = {
                     "Ma_NV": ma_nv.strip(), "Ho_Ten": ho_ten.upper().strip(), "Ten_Goi_Khac": ten_khac.strip(),
-                    "Ngay_Sinh": str(ngay_sinh), "Gioi_Tinh": gioi_tinh, "Noi_Sinh": noi_sinh.strip(), "Que_Quan": que_quan.strip(),
+                    "Ngay_Sinh": str_ngay_sinh, "Gioi_Tinh": gioi_tinh, "Noi_Sinh": noi_sinh.strip(), "Que_Quan": que_quan.strip(),
                     "Dan_Toc": dan_toc.strip(), "Ton_Giao": ton_giao.strip(), "Noi_O_Hien_Nay": noi_o.strip(), "Dien_Thoai": dien_thoai.strip(),
                     "So_CCCD": so_cccd.strip(), "Khoa_Phong": khoa_phong.strip(), "Chuc_Vu": chuc_vu.strip(), "Ngach_Vien_Chuc": ngach.strip(),
                     "Bac_Luong": bac_luong, "He_So_Luong": he_so_luong, "Ngay_Nang_Luong": pd.to_datetime(ngay_luong),
@@ -519,8 +539,8 @@ elif menu == "✏️ Chỉnh sửa / Xóa Hồ sơ":
                         e_dang = st.text_input("Ngày vào Đảng:", value=str(emp['Ngay_Vao_Dang']))
                     with ce3:
                         e_trangthai = st.text_input("Trạng thái công tác:", value=str(emp['Trang_Thai']))
-                        e_luong = st.date_input("Ngày nâng lương tiếp theo:", value=pd.to_datetime(emp['Ngay_Nang_Luong']) if pd.notnull(emp['Ngay_Nang_Luong']) else datetime.now())
-                        e_hd = st.date_input("Ngày hết hạn HĐ:", value=pd.to_datetime(emp['Ngay_Het_Han_HD']) if pd.notnull(emp['Ngay_Het_Han_HD']) else datetime.now())
+                        e_luong = st.date_input("Ngày nâng lương tiếp theo:", value=pd.to_datetime(emp['Ngay_Nang_Luong']) if pd.notnull(emp['Ngay_Nang_Luong']) else datetime.now(), format="DD/MM/YYYY")
+                        e_hd = st.date_input("Ngày hết hạn HĐ:", value=pd.to_datetime(emp['Ngay_Het_Han_HD']) if pd.notnull(emp['Ngay_Het_Han_HD']) else datetime.now(), format="DD/MM/YYYY")
                         
                     btn_update = st.form_submit_button("💾 CẬP NHẬT & LƯU CSDI")
                     
@@ -574,15 +594,15 @@ elif menu == "📂 Nhập / Xuất Excel (Mẫu 2C)":
         st.subheader("2. Tải File Excel Mẫu Chuẩn")
         sample_data = [{
             "Ma_NV": "BV0001", "Ho_Ten": "NGUYỄN VĂN AN", "Ten_Goi_Khac": "Không", 
-            "Ngay_Sinh": "1980-05-15", "Gioi_Tinh": "Nam", "Noi_Sinh": "Hà Nội", "Que_Quan": "Nam Định",
+            "Ngay_Sinh": "15/05/1980", "Gioi_Tinh": "Nam", "Noi_Sinh": "Hà Nội", "Que_Quan": "Nam Định",
             "Dan_Toc": "Kinh", "Ton_Giao": "Không", "Noi_O_Hien_Nay": "Hoàn Kiếm, Hà Nội", "Dien_Thoai": "0912345678",
             "So_CCCD": "001080012345", "Khoa_Phong": "Khoa Cấp cứu", "Chuc_Vu": "Trưởng khoa",
             "Ngach_Vien_Chuc": "Bác sĩ chính (V.08.01.01)", "Bac_Luong": 3, "He_So_Luong": 5.08, 
-            "Ngay_Nang_Luong": "2026-09-15", "Trinh_Do_Giao_Duc": "12/12", "Trinh_Do_Chuyen_Mon": "Bác sĩ CKII",
+            "Ngay_Nang_Luong": "15/09/2026", "Trinh_Do_Giao_Duc": "12/12", "Trinh_Do_Chuyen_Mon": "Bác sĩ CKII",
             "Ly_Luan_Chinh_Tri": "Cao cấp", "Ngoai_Ngu": "Anh B2", "Tin_Hoc": "Ứng dụng CNTT cơ bản",
-            "So_CCHN": "001234/BYT-CCHN", "Gio_CME": 52, "Ngay_Vao_Dang": "2010-02-03", "Ngay_Nhap_Ngu": "Không",
+            "So_CCHN": "001234/BYT-CCHN", "Gio_CME": 52, "Ngay_Vao_Dang": "03/02/2010", "Ngay_Nhap_Ngu": "Không",
             "Danh_Hieu_Phong_Tang": "Thầy thuốc Ưu tú", "Khen_Thuong_Ky_Luat": "Bằng khen Bộ Y tế",
-            "Suc_Khoe_Thuong_Binh": "Tốt", "Loai_HD": "Không xác định thời hạn", "Ngay_Het_Han_HD": "2035-12-31",
+            "Suc_Khoe_Thuong_Binh": "Tốt", "Loai_HD": "Không xác định thời hạn", "Ngay_Het_Han_HD": "31/12/2035",
             "Trang_Thai": "Đang làm việc"
         }]
         output_tmp = io.BytesIO()
