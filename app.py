@@ -108,7 +108,7 @@ with st.sidebar:
         "Menu Điều hành",
         [
             "Trang chủ / Dashboard", 
-            "Cập nhật danh sách người lao động (Excel 2C-BNV)", 
+            "Cập nhật danh sách người lao động (Mẫu 2C-BNV)", 
             "Thông báo & Văn bản"
         ],
         label_visibility="collapsed"
