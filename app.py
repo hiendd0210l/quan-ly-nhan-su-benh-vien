@@ -1,659 +1,357 @@
 import streamlit as st
 import pandas as pd
-from datetime import datetime, timedelta
 import io
-import sqlite3
-import os
+import re
+from datetime import datetime
 
-# 1. CẤU HÌNH TRANG WEB
+# ==========================================
+# 1. CẤU HÌNH TRANG & GIAO DIỆN STREAMLIT
+# ==========================================
 st.set_page_config(
-    page_title="Hệ thống Quản lý Nhân sự Bệnh viện - Chuẩn 2C-BNV",
+    page_title="Hệ thống Quản lý Nhân sự & Kiểm tra Sinh nhật",
     page_icon="🏥",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-DB_FILE = "nhansu_benhvien.db"
+# Thêm CSS tùy chỉnh giao diện
+st.markdown("""
+<style>
+    .main-header {
+        font-size: 26px;
+        font-weight: bold;
+        color: #0e4ead;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .stMetric {
+        background-color: #f8f9fa;
+        padding: 10px;
+        border-radius: 8px;
+        border: 1px solid #e9ecef;
+    }
+</style>
+""", unsafe_allow_html=True)
 
-# 2. KHỞI TẠO CƠ SỞ DỮ LIỆU SQLITE
-def init_sqlite_db():
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS nhansu (
-            Ma_NV TEXT PRIMARY KEY,
-            Ho_Ten TEXT,
-            Ten_Goi_Khac TEXT,
-            Ngay_Sinh TEXT,
-            Gioi_Tinh TEXT,
-            Noi_Sinh TEXT,
-            Que_Quan TEXT,
-            Dan_Toc TEXT,
-            Ton_Giao TEXT,
-            Noi_O_Hien_Nay TEXT,
-            Dien_Thoai TEXT,
-            So_CCCD TEXT,
-            Khoa_Phong TEXT,
-            Chuc_Vu TEXT,
-            Ngach_Vien_Chuc TEXT,
-            Bac_Luong INTEGER,
-            He_So_Luong REAL,
-            Ngay_Nang_Luong TEXT,
-            Trinh_Do_Giao_Duc TEXT,
-            Trinh_Do_Chuyen_Mon TEXT,
-            Ly_Luan_Chinh_Tri TEXT,
-            Ngoai_Ngu TEXT,
-            Tin_Hoc TEXT,
-            So_CCHN TEXT,
-            Gio_CME INTEGER,
-            Ngay_Vao_Dang TEXT,
-            Ngay_Nhap_Ngu TEXT,
-            Danh_Hieu_Phong_Tang TEXT,
-            Khen_Thuong_Ky_Luat TEXT,
-            Suc_Khoe_Thuong_Binh TEXT,
-            Loai_HD TEXT,
-            Ngay_Het_Han_HD TEXT,
-            Trang_Thai TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+st.markdown("<div class='main-header'>🏥 BỆNH VIỆN BƯU ĐIỆN - HỆ THỐNG QUẢN LÝ NHÂN SỰ & ĐỐI CHIẾU KẾT QUẢ</div>", unsafe_allow_html=True)
 
-# Hàm ép kiểu ngày tháng an toàn theo chuẩn Việt Nam (Ngày/Tháng/Năm)
-def parse_date_vietnam(series):
-    return pd.to_datetime(series, dayfirst=True, errors='coerce')
-
-# Hàm làm sạch & chuẩn hóa dữ liệu DataFrame
-def clean_dataframe(df_in):
-    if df_in.empty:
-        return df_in
-    df_clean = df_in.copy()
-    for col in df_clean.select_dtypes(include=['object']).columns:
-        df_clean[col] = df_clean[col].astype(str).str.strip()
-        df_clean[col] = df_clean[col].replace({'nan': '', 'None': '', 'NaN': ''})
-    
-    # Ép kiểu dữ liệu ngày tháng ưu tiên Ngày/Tháng/Năm (dayfirst=True)
-    df_clean['Ngay_Nang_Luong'] = parse_date_vietnam(df_clean['Ngay_Nang_Luong'])
-    df_clean['Ngay_Het_Han_HD'] = parse_date_vietnam(df_clean['Ngay_Het_Han_HD'])
-    
-    # Chuẩn hóa cột Ngay_Sinh
-    df_clean['Ngay_Sinh_DT'] = parse_date_vietnam(df_clean['Ngay_Sinh'])
-    # Tạo thêm cột chuỗi hiển thị chuẩn Ngày/Tháng/Năm
-    valid_dates = df_clean['Ngay_Sinh_DT'].notnull()
-    df_clean.loc[valid_dates, 'Ngay_Sinh_HienThi'] = df_clean.loc[valid_dates, 'Ngay_Sinh_DT'].dt.strftime('%d/%m/%Y')
-    df_clean.loc[~valid_dates, 'Ngay_Sinh_HienThi'] = df_clean.loc[~valid_dates, 'Ngay_Sinh']
-    
-    return df_clean
-
-# Đọc dữ liệu từ SQLite
-def load_data_from_db():
-    conn = sqlite3.connect(DB_FILE)
-    df_loaded = pd.read_sql_query("SELECT * FROM nhansu", conn)
-    conn.close()
-    return clean_dataframe(df_loaded)
-
-# Ghi dữ liệu vào SQLite
-def save_data_to_db(df_to_save):
-    conn = sqlite3.connect(DB_FILE)
-    df_temp = clean_dataframe(df_to_save)
-    
-    # Loại bỏ các cột tạm trước khi lưu vào SQLite
-    cols_to_drop = [c for c in ['Ngay_Sinh_DT', 'Ngay_Sinh_HienThi'] if c in df_temp.columns]
-    df_temp = df_temp.drop(columns=cols_to_drop)
-    
-    df_temp['Ngay_Nang_Luong'] = df_temp['Ngay_Nang_Luong'].dt.strftime('%Y-%m-%d')
-    df_temp['Ngay_Het_Han_HD'] = df_temp['Ngay_Het_Han_HD'].dt.strftime('%Y-%m-%d')
-    df_temp.to_sql('nhansu', conn, if_exists='replace', index=False)
-    conn.close()
-
-# Khởi tạo CSDL
-init_sqlite_db()
-
+# ==========================================
+# 2. KHỞI TẠO DỮ LIỆU MẪU HỆ THỐNG (SESSION STATE)
+# ==========================================
 if 'df_nhansu' not in st.session_state:
-    st.session_state.df_nhansu = load_data_from_db()
+    # Khai báo dữ liệu mẫu hệ thống để kiểm thử
+    sample_data = [
+        {"Ma_NV": "N0009", "Ho_Ten": "Phạm Thị Thanh Tú", "Ngay_Sinh": "17/09/1980", "Gioi_Tinh": "Nữ", "Khoa_Phong": "Ban Giám đốc", "Chuc_Vu": "Phó Giám đốc"},
+        {"Ma_NV": "N0295", "Ho_Ten": "Mai Anh Tuấn", "Ngay_Sinh": "03/09/1985", "Gioi_Tinh": "Nam", "Khoa_Phong": "Phòng Hành chính - Quản trị", "Chuc_Vu": "Phó trưởng phòng"},
+        {"Ma_NV": "N0430", "Ho_Ten": "Vương Vũ Việt Hà", "Ngay_Sinh": "26/09/1982", "Gioi_Tinh": "Nam", "Khoa_Phong": "Trung tâm Hỗ trợ sinh sản", "Chuc_Vu": "Giám đốc TT"},
+        {"Ma_NV": "N0324", "Ho_Ten": "Nguyễn Bảo Khánh", "Ngay_Sinh": "15/09/1988", "Gioi_Tinh": "Nam", "Khoa_Phong": "Trung tâm Y tế lao động Bưu điện", "Chuc_Vu": "Phó Giám đốc TT"},
+        {"Ma_NV": "N0112", "Ho_Ten": "Nguyễn Thị Thu Hằng", "Ngay_Sinh": "18/09/1983", "Gioi_Tinh": "Nữ", "Khoa_Phong": "Khoa Khám bệnh", "Chuc_Vu": "Trưởng khoa"},
+        {"Ma_NV": "N1070", "Ho_Ten": "Vũ Thị Nga", "Ngay_Sinh": "07/09/1990", "Gioi_Tinh": "Nữ", "Khoa_Phong": "Khoa Dược", "Chuc_Vu": "Phó trưởng khoa"},
+        {"Ma_NV": "N0402", "Ho_Ten": "Lê Minh Thuận", "Ngay_Sinh": "15/09/1987", "Gioi_Tinh": "Nam", "Khoa_Phong": "Khoa Ngoại", "Chuc_Vu": "Phó trưởng khoa"},
+        {"Ma_NV": "N0624", "Ho_Ten": "Đặng Ngọc Tuyến", "Ngay_Sinh": "15/09/1989", "Gioi_Tinh": "Nam", "Khoa_Phong": "Khoa Nội", "Chuc_Vu": "Phó trưởng khoa"},
+        {"Ma_NV": "N0999", "Ho_Ten": "Trần Văn Bỏ Sót", "Ngay_Sinh": "10/09/1992", "Gioi_Tinh": "Nam", "Khoa_Phong": "Phòng TSKT", "Chuc_Vu": "Chuyên viên"}, # Người có trên App nhưng Excel bị thiếu
+    ]
+    st.session_state.df_nhansu = pd.DataFrame(sample_data)
 
-df = st.session_state.df_nhansu
-today = pd.to_datetime(datetime.now().date())
+df_db = st.session_state.df_nhansu.copy()
 
-# 3. THANH MENU ĐIỀU HƯỚNG CHÍNH
-st.sidebar.image("https://img.icons8.com/color/96/hospital-2.png", width=80)
-st.sidebar.title("QUẢN LÝ NHÂN SỰ")
-st.sidebar.caption("Giao diện Trang chủ Cảnh báo & Thống kê 2C")
+# ==========================================
+# 3. XỬ LÝ DỮ LIỆU ĐỊNH DẠNG NGÀY THÁNG
+# ==========================================
+# Đồng bộ chuyển đổi cột Ngay_Sinh về định dạng datetime chuẩn
+df_db['Ngay_Sinh_DT'] = pd.to_datetime(df_db['Ngay_Sinh'], dayfirst=True, errors='coerce')
+df_db['Thang_Sinh'] = df_db['Ngay_Sinh_DT'].dt.month
+df_db['Ngay_Thang_Short'] = df_db['Ngay_Sinh_DT'].dt.strftime('%d-%m')
 
+# ==========================================
+# 4. HÀM XỬ LÝ BÓC TÁCH & ĐỐI CHIẾU EXCEL
+# ==========================================
+def clean_and_parse_uploaded_excel(file_bytes):
+    """
+    Tự động quét và làm sạch file Excel dạng báo cáo đặc thù của BVBĐ.
+    Loại bỏ các dòng gộp tên Khoa/Phòng và các dòng chữ ký cuối file.
+    """
+    df_raw = pd.read_excel(file_bytes)
+    
+    # 1. Tìm vị trí dòng chứa Tiêu đề bảng (Header)
+    header_row_idx = None
+    for idx, row in df_raw.iterrows():
+        row_values = [str(val).lower() for val in row.values]
+        if any('mã nv' in v for v in row_values) or any('họ và tên' in v for v in row_values):
+            header_row_idx = idx
+            break
+            
+    if header_row_idx is not None:
+        df_raw.columns = df_raw.iloc[header_row_idx].values
+        df_raw = df_raw.iloc[header_row_idx + 1:].copy()
+        
+    # Chuẩn hóa tên cột
+    df_raw.columns = [str(c).strip() for c in df_raw.columns]
+    
+    # Ánh ánh tên cột về chuẩn
+    col_mapping = {}
+    for col in df_raw.columns:
+        cl = col.lower()
+        if 'mã nv' in cl: col_mapping[col] = 'Ma_NV'
+        elif 'họ và tên' in cl: col_mapping[col] = 'Ho_Ten'
+        elif 'ngày' in cl: col_mapping[col] = 'Ngay_Thang'
+        elif 'chức vụ' in cl: col_mapping[col] = 'Chuc_Vu'
+        elif 'số tiền' in cl: col_mapping[col] = 'So_Tien'
+        elif 'stt' in cl: col_mapping[col] = 'STT'
+        
+    df_cleaned = df_raw.rename(columns=col_mapping)
+    
+    # Lọc lấy những dòng chứa Mã NV thực sự (Format bắt đầu bằng N)
+    if 'Ma_NV' in df_cleaned.columns:
+        df_cleaned['Ma_NV'] = df_cleaned['Ma_NV'].astype(str).str.strip().str.upper()
+        # Loại bỏ các dòng tiêu đề khoa/phòng và các dòng chữ ký (như TRƯỞNG PHÒNG, GIÁM ĐỐC...)
+        df_emp = df_cleaned[df_cleaned['Ma_NV'].str.startswith('N')].copy()
+        return df_emp
+    else:
+        return pd.DataFrame()
+
+def run_reconciliation(df_app_month, df_excel_cleaned):
+    """
+    Thực hiện so sánh đối chiếu danh sách Lọc của App với danh sách Excel upload.
+    Khóa chính định danh: Ma_NV.
+    """
+    report = {
+        'match': [],
+        'missing_in_excel': [],
+        'extra_in_excel': [],
+        'mismatch_detail': []
+    }
+    
+    df_app = df_app_month.copy()
+    df_exc = df_excel_cleaned.copy()
+    
+    df_app['Ma_NV_Key'] = df_app['Ma_NV'].astype(str).str.strip().str.upper()
+    df_exc['Ma_NV_Key'] = df_exc['Ma_NV'].astype(str).str.strip().str.upper()
+    
+    set_app = set(df_app['Ma_NV_Key'])
+    set_exc = set(df_exc['Ma_NV_Key'])
+    
+    # 1. Tập mã trùng khớp giữa 2 bên
+    common_ids = set_app.intersection(set_exc)
+    
+    # 2. Nhân sự hệ thống có nhưng Excel lập thiếu
+    missing_ids = set_app - set_exc
+    report['missing_in_excel'] = df_app[df_app['Ma_NV_Key'].isin(missing_ids)]
+    
+    # 3. Nhân sự Excel có nhưng hệ thống không thuộc tháng này
+    extra_ids = set_exc - set_app
+    report['extra_in_excel'] = df_exc[df_exc['Ma_NV_Key'].isin(extra_ids)]
+    
+    # 4. Kiểm tra sai lệch thông tin chi tiết với mã trùng
+    mismatches = []
+    matches = []
+    
+    for eid in common_ids:
+        row_app = df_app[df_app['Ma_NV_Key'] == eid].iloc[0]
+        row_exc = df_exc[df_exc['Ma_NV_Key'] == eid].iloc[0]
+        
+        # So sánh Ngày/Tháng (dd-mm)
+        app_date_str = str(row_app.get('Ngay_Thang_Short', '')).strip()
+        exc_date_str = str(row_exc.get('Ngay_Thang', '')).strip()
+        
+        diffs = []
+        if str(row_app.get('Ho_Ten', '')).strip().lower() != str(row_exc.get('Ho_Ten', '')).strip().lower():
+            diffs.append(f"Họ tên: App='{row_app.get('Ho_Ten')}' ⚡ Excel='{row_exc.get('Ho_Ten')}'")
+            
+        if app_date_str != exc_date_str:
+            diffs.append(f"Ngày/tháng sinh: App='{app_date_str}' ⚡ Excel='{exc_date_str}'")
+            
+        if diffs:
+            mismatches.append({
+                'Ma_NV': eid,
+                'Ho_Ten_App': row_app.get('Ho_Ten'),
+                'Khoa_Phong': row_app.get('Khoa_Phong'),
+                'Chi_Tiet_Sai_Lech': " | ".join(diffs)
+            })
+        else:
+            matches.append(row_app)
+            
+    report['match'] = pd.DataFrame(matches)
+    report['mismatch_detail'] = pd.DataFrame(mismatches)
+    
+    return report
+
+# ==========================================
+# 5. ĐIỀU HƯỚNG MENU CHỨC NĂNG (SIDEBAR)
+# ==========================================
+st.sidebar.title("📌 DANH MỤC CHỨC NĂNG")
 menu = st.sidebar.radio(
-    "DANH MỤC CHỨC NĂNG", 
+    "Chọn phân hệ làm việc:",
     [
-        "🏠 Trang chủ & Tổng quan",
-        "🔔 Trung tâm Cảnh báo Tự động",
-        "📋 Tra cứu & Danh sách Hồ sơ",
-        "➕ Thêm mới Hồ sơ Nhân sự",
-        "✏️ Chỉnh sửa / Xóa Hồ sơ",
-        "📂 Nhập / Xuất Excel (Mẫu 2C)",
-        "⚙️ Thiết lập Hệ thống"
+        "🎂 1. Lọc Danh sách Sinh nhật",
+        "🔍 2. Kiểm tra & Đối chiếu File Excel",
+        "📂 3. Quản lý Hồ sơ Nhân sự"
     ]
 )
 
-# -----------------------------------------------------------------------------
-# MENU 1: TRANG CHỦ & TỔNG QUAN
-# -----------------------------------------------------------------------------
-if menu == "🏠 Trang chủ & Tổng quan":
-    st.title("🏥 HỆ THỐNG QUẢN LÝ NHÂN SỰ BỆNH VIỆN")
-    st.markdown("---")
+# ==========================================
+# PHÂN HỆ 1: LỌC DANH SÁCH SINH NHẬT
+# ==========================================
+if menu == "🎂 1. Lọc Danh sách Sinh nhật":
+    st.subheader("🎂 LỌC SINH NHẬT CÁN BỘ CÔNG NHÂN VIÊN THEO THÁNG")
     
-    col1, col2, col3, col4 = st.columns(4)
-    total_emp = len(df)
-    col1.metric("Tổng số Nhân sự", f"{total_emp} người")
-    
-    if not df.empty:
-        bs_count = len(df[df['Trinh_Do_Chuyen_Mon'].astype(str).str.contains('Bác sĩ|Dược sĩ', case=False, na=False)])
-        dd_count = len(df[df['Trinh_Do_Chuyen_Mon'].astype(str).str.contains('Điều dưỡng|Kỹ thuật viên', case=False, na=False)])
+    col_sel, col_space = st.columns([1, 2])
+    with col_sel:
+        selected_month = st.selectbox("Chọn tháng sinh nhật:", range(1, 13), index=8) # Mặc định tháng 9
         
-        dang_vien_df = df[
-            df['Ngay_Vao_Dang'].notnull() & 
-            ~df['Ngay_Vao_Dang'].astype(str).str.strip().str.lower().isin(['chưa', 'khong', 'không', '0', '-', '', 'none', 'nan'])
-        ]
-        dv_count = len(dang_vien_df)
-    else:
-        bs_count, dd_count, dv_count = 0, 0, 0
+    # Lọc dữ liệu
+    df_filtered = df_db[df_db['Thang_Sinh'] == selected_month].copy()
     
-    col2.metric("Bác sĩ / Dược sĩ", f"{bs_count} người")
-    col3.metric("Điều dưỡng / KTV", f"{dd_count} người")
-    col4.metric("Đảng viên", f"{dv_count} người")
-
-    st.markdown("---")
+    st.success(f"Tổng số nhân sự có sinh nhật trong **Tháng {selected_month}**: **{len(df_filtered)} người**")
     
-    left_col, right_col = st.columns([1.3, 1.0])
-    
-    with left_col:
-        st.subheader("📊 THỐNG KÊ, LỌC & BÁO CÁO TỶ LỆ (2C-BNV)")
+    if not df_filtered.empty:
+        # Bảng hiển thị kết quả
+        st.dataframe(
+            df_filtered[['Ma_NV', 'Ho_Ten', 'Ngay_Sinh', 'Gioi_Tinh', 'Khoa_Phong', 'Chuc_Vu']],
+            use_container_width=True,
+            hide_index=True
+        )
         
-        if df.empty:
-            st.info("Chưa có dữ liệu để lập báo cáo thống kê.")
-        else:
-            with st.expander("🔍 Lọc đa điều kiện nâng cao:", expanded=True):
-                match_mode = st.radio(
-                    "⚙️ Chế độ lọc:",
-                    options=["🔍 Lựa chọn tương đối (Chứa chuỗi ký tự)", "🎯 Lựa chọn tuyệt đối (Chính xác 100%)"],
-                    index=0,
-                    horizontal=True
-                )
-                is_contains = "tương đối" in match_mode.lower()
-
-                filtered_df = df.copy()
-                f_col1, f_col2 = st.columns(2)
-                
-                def apply_filter(data_frame, col_name, selected_val, contains_mode=True):
-                    if selected_val == "Tất cả" or not selected_val:
-                        return data_frame
-                    if contains_mode:
-                        return data_frame[data_frame[col_name].astype(str).str.contains(selected_val, case=False, na=False, regex=False)]
-                    else:
-                        return data_frame[data_frame[col_name].astype(str) == selected_val]
-
-                with f_col1:
-                    kp_list = ["Tất cả"] + sorted([str(x) for x in df['Khoa_Phong'].unique() if str(x).strip() != ''])
-                    sel_kp = st.selectbox("1. Khoa / Phòng:", kp_list)
-                    filtered_df = apply_filter(filtered_df, 'Khoa_Phong', sel_kp, is_contains)
-                        
-                    td_list = ["Tất cả"] + sorted([str(x) for x in df['Trinh_Do_Chuyen_Mon'].unique() if str(x).strip() != ''])
-                    sel_td = st.selectbox("2. Trình độ chuyên môn:", td_list)
-                    filtered_df = apply_filter(filtered_df, 'Trinh_Do_Chuyen_Mon', sel_td, is_contains)
-
-                    gt_list = ["Tất cả"] + sorted([str(x) for x in df['Gioi_Tinh'].unique() if str(x).strip() != ''])
-                    sel_gt = st.selectbox("3. Giới tính:", gt_list)
-                    filtered_df = apply_filter(filtered_df, 'Gioi_Tinh', sel_gt, is_contains)
-
-                with f_col2:
-                    tt_list = ["Tất cả"] + sorted([str(x) for x in df['Trang_Thai'].unique() if str(x).strip() != ''])
-                    sel_tt = st.selectbox("4. Trạng thái công tác:", tt_list)
-                    filtered_df = apply_filter(filtered_df, 'Trang_Thai', sel_tt, is_contains)
-
-                    hd_list = ["Tất cả"] + sorted([str(x) for x in df['Loai_HD'].unique() if str(x).strip() != ''])
-                    sel_hd = st.selectbox("5. Loại Hợp đồng:", hd_list)
-                    filtered_df = apply_filter(filtered_df, 'Loai_HD', sel_hd, is_contains)
-
-                    llct_list = ["Tất cả"] + sorted([str(x) for x in df['Ly_Luan_Chinh_Tri'].unique() if str(x).strip() != ''])
-                    sel_llct = st.selectbox("6. Lý luận chính trị:", llct_list)
-                    filtered_df = apply_filter(filtered_df, 'Ly_Luan_Chinh_Tri', sel_llct, is_contains)
-
-            count_filtered = len(filtered_df)
-            pct_over_total = (count_filtered / total_emp * 100) if total_emp > 0 else 0
+        # Xuất dữ liệu Excel chuẩn
+        output_month = io.BytesIO()
+        with pd.ExcelWriter(output_month, engine='openpyxl') as writer:
+            df_filtered.to_excel(writer, index=False, sheet_name=f'Sinh_Nhat_T{selected_month}')
             
-            st.markdown(f"📌 **Kết quả lọc:** **{count_filtered}** / **{total_emp}** nhân sự (**{pct_over_total:.1f}%** toàn đơn vị)")
-            
-            st.markdown("📈 **Báo cáo Số lượng & Tỷ lệ Phân loại:**")
-            group_col = st.selectbox(
-                "Phân tích tỷ lệ phân loại danh sách đã lọc theo:",
-                ["Khoa_Phong", "Trinh_Do_Chuyen_Mon", "Chuc_Vu", "Gioi_Tinh", "Loai_HD", "Trang_Thai", "Ly_Luan_Chinh_Tri"],
-                format_func=lambda x: {
-                    "Khoa_Phong": "1. Khoa / Phòng",
-                    "Trinh_Do_Chuyen_Mon": "2. Trình độ chuyên môn",
-                    "Chuc_Vu": "3. Chức vụ",
-                    "Gioi_Tinh": "4. Giới tính",
-                    "Loai_HD": "5. Loại Hợp đồng",
-                    "Trang_Thai": "6. Trạng thái công tác",
-                    "Ly_Luan_Chinh_Tri": "7. Lý luận chính trị"
-                }[x]
-            )
-
-            if not filtered_df.empty:
-                df_stat = filtered_df[group_col].value_counts().reset_index()
-                df_stat.columns = ['Phân loại', 'Số lượng (người)']
-                df_stat['Tỷ lệ / Nhóm lọc (%)'] = (df_stat['Số lượng (người)'] / count_filtered * 100).round(1).astype(str) + '%'
-                df_stat['Tỷ lệ / Toàn đơn vị (%)'] = (df_stat['Số lượng (người)'] / total_emp * 100).round(1).astype(str) + '%'
-                st.dataframe(df_stat, use_container_width=True)
-            else:
-                st.warning("Không có dữ liệu thỏa mãn điều kiện lọc.")
-
-            st.markdown("📋 **Danh sách chi tiết nhân sự đã lọc:**")
-            st.dataframe(
-                filtered_df[['Ma_NV', 'Ho_Ten', 'Khoa_Phong', 'Chuc_Vu', 'Trinh_Do_Chuyen_Mon', 'Trang_Thai']], 
-                use_container_width=True, 
-                height=200
-            )
-            
-            output_report = io.BytesIO()
-            with pd.ExcelWriter(output_report, engine='openpyxl') as writer:
-                if not filtered_df.empty:
-                    df_stat.to_excel(writer, index=False, sheet_name='Thong_Ke_Ty_Le')
-                filtered_df.to_excel(writer, index=False, sheet_name='Danh_Sach_Thong_Ke')
-            
-            st.download_button(
-                label="📥 XUẤT BÁO CÁO THỐNG KÊ & TỶ LỆ (.XLSX)",
-                data=output_report.getvalue(),
-                file_name=f"Bao_Cao_Thong_Ke_Tyle_NhanSu_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-
-    with right_col:
-        st.subheader("🔔 TRUNG TÂM CẢNH BÁO TỰ ĐỘNG")
-        
-        if not df.empty:
-            df_luong = df[(df['Ngay_Nang_Luong'] >= today) & (df['Ngay_Nang_Luong'] <= today + timedelta(days=60))]
-            df_hd = df[(df['Ngay_Het_Han_HD'] >= today) & (df['Ngay_Het_Han_HD'] <= today + timedelta(days=30))]
-            
-            next_month = (today.month % 12) + 1
-            if 'Ngay_Sinh_DT' not in df.columns:
-                df['Ngay_Sinh_DT'] = parse_date_vietnam(df['Ngay_Sinh'])
-            df_sn = df[df['Ngay_Sinh_DT'].dt.month == next_month]
-        else:
-            df_luong, df_hd, df_sn = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
-
-        t1, t2, t3 = st.tabs([
-            f"📈 Nâng lương ({len(df_luong)})", 
-            f"📄 Hợp đồng ({len(df_hd)})", 
-            f"🎂 Sinh nhật T{next_month} ({len(df_sn)})"
-        ])
-        
-        with t1:
-            st.caption("Cán bộ sắp đến hạn nâng bậc lương trong 60 ngày tới:")
-            if not df_luong.empty:
-                st.dataframe(
-                    df_luong[['Ma_NV', 'Ho_Ten', 'Khoa_Phong', 'Ngay_Nang_Luong']], 
-                    use_container_width=True, 
-                    height=320
-                )
-            else:
-                st.success("Không có ai sắp nâng lương trong 60 ngày tới.")
-                
-        with t2:
-            st.caption("Hợp đồng lao động sắp hết hạn trong 30 ngày tới:")
-            if not df_hd.empty:
-                st.dataframe(
-                    df_hd[['Ma_NV', 'Ho_Ten', 'Khoa_Phong', 'Loai_HD', 'Ngay_Het_Han_HD']], 
-                    use_container_width=True, 
-                    height=320
-                )
-            else:
-                st.success("Không có hợp đồng lao động nào sắp hết hạn.")
-                
-        with t3:
-            st.caption(f"Danh sách nhân sự có sinh nhật trong tháng {next_month}:")
-            if not df_sn.empty:
-                display_sn = df_sn.copy()
-                if 'Ngay_Sinh_HienThi' in display_sn.columns:
-                    display_sn['Ngay_Sinh'] = display_sn['Ngay_Sinh_HienThi']
-                st.dataframe(
-                    display_sn[['Ma_NV', 'Ho_Ten', 'Khoa_Phong', 'Ngay_Sinh']], 
-                    use_container_width=True, 
-                    height=320
-                )
-            else:
-                st.info(f"Không có nhân sự nào sinh nhật trong tháng {next_month}.")
-
-# -----------------------------------------------------------------------------
-# MENU 2: TRUNG TÂM CẢNH BÁO TỰ ĐỘNG
-# -----------------------------------------------------------------------------
-elif menu == "🔔 Trung tâm Cảnh báo Tự động":
-    st.title("🔔 TRUNG TÂM CẢNH BÁO TỰ ĐỘNG CHI TIẾT")
-    st.markdown("---")
-    
-    if not df.empty:
-        df_luong = df[(df['Ngay_Nang_Luong'] >= today) & (df['Ngay_Nang_Luong'] <= today + timedelta(days=60))]
-        df_hd = df[(df['Ngay_Het_Han_HD'] >= today) & (df['Ngay_Het_Han_HD'] <= today + timedelta(days=30))]
-        df_cme = df[pd.to_numeric(df['Gio_CME'], errors='coerce').fillna(0) < 48]
-    else:
-        df_luong, df_hd, df_cme = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
-    
-    tab1, tab2, tab3 = st.tabs([
-        f"📈 Sắp nâng bậc lương ({len(df_luong)})", 
-        f"📄 Sắp hết hạn Hợp đồng ({len(df_hd)})", 
-        f"🩺 Thiếu giờ CME <48h ({len(df_cme)})"
-    ])
-    
-    with tab1:
-        st.subheader("📌 Danh sách Nhân sự đến hạn nâng lương trong 60 ngày tới")
-        if not df_luong.empty:
-            st.dataframe(df_luong[['Ma_NV', 'Ho_Ten', 'Khoa_Phong', 'Ngach_Vien_Chuc', 'Bac_Luong', 'He_So_Luong', 'Ngay_Nang_Luong']], use_container_width=True)
-        else:
-            st.info("Không có nhân sự nào sắp đến hạn nâng lương trong 60 ngày tới.")
-            
-    with tab2:
-        st.subheader("📌 Danh sách Hợp đồng lao động sắp hết hạn trong 30 ngày tới")
-        if not df_hd.empty:
-            st.dataframe(df_hd[['Ma_NV', 'Ho_Ten', 'Khoa_Phong', 'Loai_HD', 'Ngay_Het_Han_HD']], use_container_width=True)
-        else:
-            st.info("Không có hợp đồng lao động nào sắp hết hạn trong 30 ngày tới.")
-            
-    with tab3:
-        st.subheader("📌 Cảnh báo Bác sĩ/Điều dưỡng chưa đủ 48 tiết CME")
-        if not df_cme.empty:
-            st.dataframe(df_cme[['Ma_NV', 'Ho_Ten', 'Khoa_Phong', 'Chuc_Vu', 'So_CCHN', 'Gio_CME']], use_container_width=True)
-        else:
-            st.info("Tất cả nhân sự đã đạt đủ tiêu chuẩn giờ CME.")
-
-# -----------------------------------------------------------------------------
-# MENU 3: TRA CỨU & DANH SÁCH HỒ SƠ (ĐÃ ĐIỀU CHỈNH CHUẨN NGÀY/THÁNG/NĂM)
-# -----------------------------------------------------------------------------
-elif menu == "📋 Tra cứu & Danh sách Hồ sơ":
-    st.title("📋 TRA CỨU & QUẢN LÝ DANH SÁCH HỒ SƠ 2C-BNV")
-    st.markdown("---")
-    
-    if df.empty:
-        st.warning("⚠️ Cơ sở dữ liệu hiện chưa có hồ sơ nhân sự nào. Vui lòng nạp file Excel vào hệ thống.")
-    else:
-        c_search, c_khoa, c_tt, c_sn = st.columns([2, 1, 1, 1])
-        
-        with c_search:
-            search_kw = st.text_input("🔍 Tìm kiếm theo Họ tên, Mã NV, Số CCCD, CCHN:")
-        with c_khoa:
-            khoa_opts = ["Tất cả"] + sorted([str(x) for x in df['Khoa_Phong'].dropna().unique() if str(x).strip() != ''])
-            sel_khoa = st.selectbox("Lọc Khoa/Phòng:", khoa_opts)
-        with c_tt:
-            tt_opts = ["Tất cả"] + sorted([str(x) for x in df['Trang_Thai'].dropna().unique() if str(x).strip() != ''])
-            sel_tt = st.selectbox("Lọc Trạng thái:", tt_opts)
-        with c_sn:
-            month_opts = ["Tất cả"] + [f"Tháng {m}" for m in range(1, 13)]
-            sel_month = st.selectbox("🎂 Lọc Sinh nhật:", month_opts)
-            
-        filtered = df.copy()
-        
-        # Lọc từ khóa
-        if search_kw:
-            filtered = filtered[
-                filtered['Ho_Ten'].astype(str).str.contains(search_kw, case=False, na=False) |
-                filtered['Ma_NV'].astype(str).str.contains(search_kw, case=False, na=False) |
-                filtered['So_CCCD'].astype(str).str.contains(search_kw, case=False, na=False) |
-                filtered['So_CCHN'].astype(str).str.contains(search_kw, case=False, na=False)
-            ]
-            
-        # Lọc Khoa / Phòng
-        if sel_khoa != "Tất cả":
-            filtered = filtered[filtered['Khoa_Phong'].astype(str) == sel_khoa]
-            
-        # Lọc Trạng thái công tác
-        if sel_tt != "Tất cả":
-            filtered = filtered[filtered['Trang_Thai'].astype(str) == sel_tt]
-            
-        # Lọc Tháng sinh theo chuẩn Ngày/Tháng/Năm
-        if sel_month != "Tất cả":
-            selected_m = int(sel_month.replace("Tháng ", ""))
-            # Ép kiểu chuẩn Ngày/Tháng/Năm (dayfirst=True)
-            filtered['Ngay_Sinh_DT'] = parse_date_vietnam(filtered['Ngay_Sinh'])
-            filtered = filtered[filtered['Ngay_Sinh_DT'].dt.month == selected_m]
-            
-        st.write(f"Hiển thị **{len(filtered)}** / **{len(df)}** hồ sơ nhân sự:")
-        
-        # Hiển thị ngày sinh theo định dạng DD/MM/YYYY
-        display_df = filtered.copy()
-        if 'Ngay_Sinh_HienThi' in display_df.columns:
-            display_df['Ngay_Sinh'] = display_df['Ngay_Sinh_HienThi']
-            
-        display_cols = ['Ma_NV', 'Ho_Ten', 'Ngay_Sinh', 'Gioi_Tinh', 'Khoa_Phong', 'Chuc_Vu', 'Trinh_Do_Chuyen_Mon', 'Trang_Thai']
-        valid_cols = [c for c in display_cols if c in display_df.columns]
-        
-        st.dataframe(display_df[valid_cols] if not display_df.empty else display_df, use_container_width=True)
-
-# -----------------------------------------------------------------------------
-# MENU 4: THÊM MỚI HỒ SƠ NHÂN SỰ
-# -----------------------------------------------------------------------------
-elif menu == "➕ Thêm mới Hồ sơ Nhân sự":
-    st.title("➕ THÊM MỚI HỒ SƠ NHÂN SỰ")
-    st.markdown("---")
-    
-    with st.form("form_add_emp", clear_on_submit=True):
-        st.subheader("I. Thông tin Hành chính & Cá nhân")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            ma_nv = st.text_input("Mã Nhân viên (*):", value=f"BV{len(df)+1:04d}")
-            ho_ten = st.text_input("Họ và Tên khai sinh (*):")
-            ten_khac = st.text_input("Tên gọi khác / Bí danh:", value="Không")
-            ngay_sinh = st.date_input("Ngày sinh:", value=datetime(1990, 1, 1), format="DD/MM/YYYY")
-            gioi_tinh = st.selectbox("Giới tính:", ["Nam", "Nữ"])
-        with col2:
-            so_cccd = st.text_input("Số CCCD / CMND (*):")
-            noi_sinh = st.text_input("Nơi sinh (Xã/Huyện/Tỉnh):")
-            que_quan = st.text_input("Quê quán:")
-            dan_toc = st.text_input("Dân tộc:", value="Kinh")
-            ton_giao = st.text_input("Tôn giáo:", value="Không")
-        with col3:
-            dien_thoai = st.text_input("Số điện thoại:")
-            noi_o = st.text_input("Nơi ở hiện nay:")
-            suc_khoe = st.text_input("Tình trạng sức khỏe:", value="Tốt")
-            ngay_dang = st.text_input("Ngày vào Đảng (DD/MM/YYYY hoặc Chưa):", value="Chưa")
-            ngay_ngu = st.text_input("Ngày nhập ngũ / Quân hàm:", value="Không")
-
-        st.subheader("II. Chức danh, Ngạch bậc & Chuyên môn Y tế")
-        col4, col5, col6 = st.columns(3)
-        with col4:
-            khoa_phong = st.text_input("Khoa / Phòng làm việc:")
-            chuc_vu = st.text_input("Chức vụ:", value="Nhiệm vụ chuyên môn")
-            ngach = st.text_input("Ngạch viên chức:")
-            td_chuyen_mon = st.text_input("Trình độ chuyên môn (BS/ĐD/Dược sĩ...):")
-        with col5:
-            bac_luong = st.number_input("Bậc lương:", min_value=1, max_value=12, value=1)
-            he_so_luong = st.number_input("Hệ số lương:", min_value=1.0, max_value=10.0, value=2.34, step=0.01)
-            ngay_luong = st.date_input("Ngày nâng lương tiếp theo:", value=datetime.now() + timedelta(days=1095), format="DD/MM/YYYY")
-            so_cchn = st.text_input("Số Chứng chỉ hành nghề (CCHN):")
-        with col6:
-            gio_cme = st.number_input("Số tiết CME lũy kế:", min_value=0, max_value=300, value=0)
-            td_llct = st.selectbox("Lý luận chính trị:", ["Chưa", "Sơ cấp", "Trung cấp", "Cao cấp", "Cử nhân"])
-            ngoai_ngu = st.text_input("Ngoại ngữ:", value="Anh A2")
-            tin_hoc = st.text_input("Tin học:", value="CB")
-
-        st.subheader("III. Hợp đồng lao động & Khen thưởng")
-        col7, col8, col9 = st.columns(3)
-        with col7:
-            loai_hd = st.selectbox("Loại Hợp đồng:", ["Thử việc", "Xác định thời hạn", "Không xác định thời hạn"])
-            ngay_hd = st.date_input("Ngày hết hạn HĐ:", value=datetime.now() + timedelta(days=365), format="DD/MM/YYYY")
-        with col8:
-            khen_thuong = st.text_input("Khen thưởng / Kỷ luật:", value="Không")
-            danh_hieu = st.text_input("Danh hiệu phong tặng:", value="Không")
-        with col9:
-            trang_thai = st.selectbox("Trạng thái công tác:", ["Đang làm việc", "Nghỉ thai sản", "Đã nghỉ việc"])
-
-        btn_save = st.form_submit_button("💾 LƯU HỒ SƠ VÀO CSDI")
-        
-        if btn_save:
-            if not ma_nv or not ho_ten:
-                st.error("Vui lòng điền đầy đủ Mã nhân viên và Họ tên!")
-            else:
-                str_ngay_sinh = ngay_sinh.strftime('%d/%m/%Y')
-                new_row = {
-                    "Ma_NV": ma_nv.strip(), "Ho_Ten": ho_ten.upper().strip(), "Ten_Goi_Khac": ten_khac.strip(),
-                    "Ngay_Sinh": str_ngay_sinh, "Gioi_Tinh": gioi_tinh, "Noi_Sinh": noi_sinh.strip(), "Que_Quan": que_quan.strip(),
-                    "Dan_Toc": dan_toc.strip(), "Ton_Giao": ton_giao.strip(), "Noi_O_Hien_Nay": noi_o.strip(), "Dien_Thoai": dien_thoai.strip(),
-                    "So_CCCD": so_cccd.strip(), "Khoa_Phong": khoa_phong.strip(), "Chuc_Vu": chuc_vu.strip(), "Ngach_Vien_Chuc": ngach.strip(),
-                    "Bac_Luong": bac_luong, "He_So_Luong": he_so_luong, "Ngay_Nang_Luong": pd.to_datetime(ngay_luong),
-                    "Trinh_Do_Giao_Duc": "12/12", "Trinh_Do_Chuyen_Mon": td_chuyen_mon.strip(), "Ly_Luan_Chinh_Tri": td_llct,
-                    "Ngoai_Ngu": ngoai_ngu.strip(), "Tin_Hoc": tin_hoc.strip(), "So_CCHN": so_cchn.strip(), "Gio_CME": gio_cme,
-                    "Ngay_Vao_Dang": ngay_dang.strip(), "Ngay_Nhap_Ngu": ngay_ngu.strip(), "Danh_Hieu_Phong_Tang": danh_hieu.strip(),
-                    "Khen_Thuong_Ky_Luat": khen_thuong.strip(), "Suc_Khoe_Thuong_Binh": suc_khoe.strip(), "Loai_HD": loai_hd,
-                    "Ngay_Het_Han_HD": pd.to_datetime(ngay_hd), "Trang_Thai": trang_thai.strip()
-                }
-                st.session_state.df_nhansu = pd.concat([st.session_state.df_nhansu, pd.DataFrame([new_row])], ignore_index=True)
-                save_data_to_db(st.session_state.df_nhansu)
-                st.success(f"✅ Đã thêm mới thành công hồ sơ {ho_ten.upper()} vào CSDL!")
-
-# -----------------------------------------------------------------------------
-# MENU 5: CHỈNH SỬA / XÓA HỒ SƠ
-# -----------------------------------------------------------------------------
-elif menu == "✏️ Chỉnh sửa / Xóa Hồ sơ":
-    st.title("✏️ CẬP NHẬT HOẶC XÓA HỒ SƠ NHÂN SỰ")
-    st.markdown("---")
-    
-    if df.empty:
-        st.warning("⚠️ Cơ sở dữ liệu hiện chưa có hồ sơ nào.")
-    else:
-        selected_id = st.selectbox("🔍 Chọn Mã Nhân Viên hoặc Họ Tên cần thao tác:", df['Ma_NV'].astype(str) + " - " + df['Ho_Ten'].astype(str))
-        
-        if selected_id:
-            ma_selected = selected_id.split(" - ")[0]
-            emp_idx = df[df['Ma_NV'].astype(str) == ma_selected].index[0]
-            emp = df.loc[emp_idx]
-            
-            tab_edit, tab_delete = st.tabs(["✏️ Chỉnh sửa thông tin", "🗑️ Xóa hồ sơ"])
-            
-            with tab_edit:
-                with st.form("form_edit_emp"):
-                    st.subheader(f"Cập nhật thông tin: {emp['Ho_Ten']} ({emp['Ma_NV']})")
-                    
-                    ce1, ce2, ce3 = st.columns(3)
-                    with ce1:
-                        e_khoa = st.text_input("Khoa/Phòng:", value=str(emp['Khoa_Phong']))
-                        e_chucvu = st.text_input("Chức vụ:", value=str(emp['Chuc_Vu']))
-                        e_hsl = st.number_input("Hệ số lương:", value=float(emp['He_So_Luong']) if pd.notnull(emp['He_So_Luong']) else 2.34, step=0.01)
-                    with ce2:
-                        e_cme = st.number_input("Số giờ CME tích lũy:", value=int(emp['Gio_CME']) if pd.notnull(emp['Gio_CME']) else 0)
-                        e_cchn = st.text_input("Số CCHN:", value=str(emp['So_CCHN']))
-                        e_dang = st.text_input("Ngày vào Đảng:", value=str(emp['Ngay_Vao_Dang']))
-                    with ce3:
-                        e_trangthai = st.text_input("Trạng thái công tác:", value=str(emp['Trang_Thai']))
-                        e_luong = st.date_input("Ngày nâng lương tiếp theo:", value=pd.to_datetime(emp['Ngay_Nang_Luong']) if pd.notnull(emp['Ngay_Nang_Luong']) else datetime.now(), format="DD/MM/YYYY")
-                        e_hd = st.date_input("Ngày hết hạn HĐ:", value=pd.to_datetime(emp['Ngay_Het_Han_HD']) if pd.notnull(emp['Ngay_Het_Han_HD']) else datetime.now(), format="DD/MM/YYYY")
-                        
-                    btn_update = st.form_submit_button("💾 CẬP NHẬT & LƯU CSDI")
-                    
-                    if btn_update:
-                        st.session_state.df_nhansu.at[emp_idx, 'Khoa_Phong'] = e_khoa.strip()
-                        st.session_state.df_nhansu.at[emp_idx, 'Chuc_Vu'] = e_chucvu.strip()
-                        st.session_state.df_nhansu.at[emp_idx, 'He_So_Luong'] = e_hsl
-                        st.session_state.df_nhansu.at[emp_idx, 'Gio_CME'] = e_cme
-                        st.session_state.df_nhansu.at[emp_idx, 'So_CCHN'] = e_cchn.strip()
-                        st.session_state.df_nhansu.at[emp_idx, 'Ngay_Vao_Dang'] = e_dang.strip()
-                        st.session_state.df_nhansu.at[emp_idx, 'Trang_Thai'] = e_trangthai.strip()
-                        st.session_state.df_nhansu.at[emp_idx, 'Ngay_Nang_Luong'] = pd.to_datetime(e_luong)
-                        st.session_state.df_nhansu.at[emp_idx, 'Ngay_Het_Han_HD'] = pd.to_datetime(e_hd)
-                        save_data_to_db(st.session_state.df_nhansu)
-                        st.success("✅ Đã cập nhật thành công dữ liệu!")
-                        st.rerun()
-                        
-            with tab_delete:
-                st.warning(f"⚠️ Bạn có chắc chắn muốn xóa hồ sơ cán bộ **{emp['Ho_Ten']}** ({emp['Ma_NV']})?")
-                if st.button("❌ XÁC NHẬN XÓA HỒ SƠ"):
-                    st.session_state.df_nhansu = st.session_state.df_nhansu.drop(emp_idx).reset_index(drop=True)
-                    save_data_to_db(st.session_state.df_nhansu)
-                    st.success("Đã xóa hồ sơ thành công!")
-                    st.rerun()
-
-# -----------------------------------------------------------------------------
-# MENU 6: NHẬP / XUẤT EXCEL (MẪU 2C)
-# -----------------------------------------------------------------------------
-elif menu == "📂 Nhập / Xuất Excel (Mẫu 2C)":
-    st.title("📂 ĐỒNG BỘ DỮ LIỆU EXCEL MẪU 2C-BNV")
-    st.markdown("---")
-    
-    col_x, col_m = st.columns(2)
-    
-    with col_x:
-        st.subheader("1. Xuất Báo cáo Excel từ CSDL")
-        st.write(f"Đang lưu trữ: **{len(df)}** hồ sơ nhân sự")
-        
-        output_all = io.BytesIO()
-        with pd.ExcelWriter(output_all, engine='openpyxl') as writer:
-            df.to_excel(writer, index=False, sheet_name='DanhSach_2C_BNV')
-        
         st.download_button(
-            label="📥 TẢI VỀ FILE EXCEL (.XLSX)",
-            data=output_all.getvalue(),
-            file_name=f"Danh_Sach_Nhan_Su_BV_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            label=f"📥 Tải danh sách sinh nhật Tháng {selected_month} (.xlsx)",
+            data=output_month.getvalue(),
+            file_name=f"DS_SinhNhat_Thang_{selected_month}.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
         )
+    else:
+        st.warning(f"Không có nhân sự nào sinh nhật trong Tháng {selected_month}.")
 
+# ==========================================
+# PHÂN HỆ 2: KIỂM TRA & ĐỐI CHIẾU FILE EXCEL
+# ==========================================
+elif menu == "🔍 2. Kiểm tra & Đối chiếu File Excel":
+    st.subheader("🔍 ĐỐI CHIẾU FILE EXCEL BÊN NGOÀI VỚI DỮ LIỆU ĐÃ LỌC")
+    st.caption("Chức năng cho phép upload tệp Excel do người khác lập ra để ứng dụng tự động kiểm tra xem có khớp với danh sách hệ thống hay không.")
+    
+    col_m, col_up = st.columns([1, 2])
     with col_m:
-        st.subheader("2. Tải File Excel Mẫu Chuẩn")
-        sample_data = [{
-            "Ma_NV": "BV0001", "Ho_Ten": "NGUYỄN VĂN AN", "Ten_Goi_Khac": "Không", 
-            "Ngay_Sinh": "15/05/1980", "Gioi_Tinh": "Nam", "Noi_Sinh": "Hà Nội", "Que_Quan": "Nam Định",
-            "Dan_Toc": "Kinh", "Ton_Giao": "Không", "Noi_O_Hien_Nay": "Hoàn Kiếm, Hà Nội", "Dien_Thoai": "0912345678",
-            "So_CCCD": "001080012345", "Khoa_Phong": "Khoa Cấp cứu", "Chuc_Vu": "Trưởng khoa",
-            "Ngach_Vien_Chuc": "Bác sĩ chính (V.08.01.01)", "Bac_Luong": 3, "He_So_Luong": 5.08, 
-            "Ngay_Nang_Luong": "15/09/2026", "Trinh_Do_Giao_Duc": "12/12", "Trinh_Do_Chuyen_Mon": "Bác sĩ CKII",
-            "Ly_Luan_Chinh_Tri": "Cao cấp", "Ngoai_Ngu": "Anh B2", "Tin_Hoc": "Ứng dụng CNTT cơ bản",
-            "So_CCHN": "001234/BYT-CCHN", "Gio_CME": 52, "Ngay_Vao_Dang": "03/02/2010", "Ngay_Nhap_Ngu": "Không",
-            "Danh_Hieu_Phong_Tang": "Thầy thuốc Ưu tú", "Khen_Thuong_Ky_Luat": "Bằng khen Bộ Y tế",
-            "Suc_Khoe_Thuong_Binh": "Tốt", "Loai_HD": "Không xác định thời hạn", "Ngay_Het_Han_HD": "31/12/2035",
-            "Trang_Thai": "Đang làm việc"
-        }]
-        output_tmp = io.BytesIO()
-        with pd.ExcelWriter(output_tmp, engine='openpyxl') as writer:
-            pd.DataFrame(sample_data).to_excel(writer, index=False, sheet_name='Mau_2C_BNV')
-            
-        st.download_button(
-            label="📄 TẢI FILE EXCEL MẪU (.XLSX)",
-            data=output_tmp.getvalue(),
-            file_name="Mau_Ly_Lich_2C_BNV.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
-        
-    st.markdown("---")
-    st.subheader("3. Nạp File Excel Nhân Sự Đã Điền Vào CSDL")
-    uploaded_file = st.file_uploader("Upload file Excel (.xlsx) chứa dữ liệu nhân sự", type=["xlsx", "csv"])
+        check_month = st.selectbox("Chọn tháng cần kiểm tra đối chiếu:", range(1, 13), index=8)
+    
+    # Lấy danh sách chuẩn của tháng từ ứng dụng
+    df_app_target = df_db[df_db['Thang_Sinh'] == check_month].copy()
+    
+    st.info(f"📌 Danh sách hệ thống đang có: **{len(df_app_target)}** nhân sự sinh nhật Tháng {check_month}.")
+    
+    uploaded_file = st.file_uploader("Upload tệp Excel cần kiểm tra (.xlsx, .xls):", type=["xlsx", "xls"])
     
     if uploaded_file is not None:
         try:
-            if uploaded_file.name.endswith('.csv'):
-                df_upload = pd.read_csv(uploaded_file)
-            else:
-                df_upload = pd.read_excel(uploaded_file)
-                
-            st.success(f"Đã đọc thành công {len(df_upload)} hồ sơ từ file!")
-            st.dataframe(df_upload.head(5))
+            # 1. Bóc tách và làm sạch dữ liệu tệp upload
+            df_excel_cleaned = clean_and_parse_uploaded_excel(uploaded_file)
             
-            if st.button("🚀 XÁC NHẬN NẠP VÀ LƯU VÀO CƠ SỞ DỮ LIỆU"):
-                df_cleaned = clean_dataframe(df_upload)
-                st.session_state.df_nhansu = df_cleaned
-                save_data_to_db(df_cleaned)
-                st.success(f"✅ ĐÃ NẠP THÀNH CÔNG {len(df_cleaned)} HỒ SƠ VÀO CSDI!")
-                st.rerun()
+            if df_excel_cleaned.empty:
+                st.error("Không tìm thấy dữ liệu nhân sự hợp lệ trong tệp Excel upload! Vui lòng kiểm tra lại cấu trúc file.")
+            else:
+                st.success(f"Đã đọc và lọc sạch dữ liệu từ tệp Excel: Tìm thấy **{len(df_excel_cleaned)}** bản ghi nhân sự.")
+                
+                # 2. Thực hiện đối chiếu
+                res = run_reconciliation(df_app_target, df_excel_cleaned)
+                
+                st.markdown("---")
+                st.subheader("📊 BÁO CÁO KẾT QUẢ ĐỐI CHIẾU")
+                
+                # Hiển thị chỉ số
+                c1, c2, c3, c4 = st.columns(4)
+                c1.metric("✅ Khớp 100%", f"{len(res['match'])} người")
+                c2.metric("❌ File Excel THIẾU", f"{len(res['missing_in_excel'])} người")
+                c3.metric("⚠️ File Excel THỪA/LỆCH", f"{len(res['extra_in_excel'])} người")
+                c4.metric("⚡ LỆCH thông tin", f"{len(res['mismatch_detail'])} trường hợp")
+                
+                # Tab chi tiết
+                t_missing, t_extra, t_mismatch, t_match = st.tabs([
+                    f"❌ File Excel thiếu ({len(res['missing_in_excel'])})",
+                    f"⚠️ File Excel thừa / Sai tháng ({len(res['extra_in_excel'])})",
+                    f"⚡ Lệch thông tin chi tiết ({len(res['mismatch_detail'])})",
+                    f"✅ Khớp hoàn toàn ({len(res['match'])})"
+                ])
+                
+                with t_missing:
+                    st.write("**Danh sách nhân sự có sinh nhật trong tháng trên Hệ thống nhưng tệp Excel lập thiếu:**")
+                    if not res['missing_in_excel'].empty:
+                        st.dataframe(res['missing_in_excel'][['Ma_NV', 'Ho_Ten', 'Ngay_Sinh', 'Khoa_Phong', 'Chuc_Vu']], use_container_width=True, hide_index=True)
+                    else:
+                        st.success("Tệp Excel không bị thiếu nhân sự nào!")
+                        
+                with t_extra:
+                    st.write("**Danh sách nhân sự có trong tệp Excel nhưng Hệ thống xác định không thuộc sinh nhật tháng này:**")
+                    if not res['extra_in_excel'].empty:
+                        st.dataframe(res['extra_in_excel'], use_container_width=True, hide_index=True)
+                    else:
+                        st.success("Tệp Excel không có nhân sự bị thừa/nhầm tháng!")
+                        
+                with t_mismatch:
+                    st.write("**Nhân sự trùng Mã NV nhưng sai lệch Ngày sinh hoặc Họ tên giữa 2 bên:**")
+                    if not res['mismatch_detail'].empty:
+                        st.dataframe(res['mismatch_detail'], use_container_width=True, hide_index=True)
+                    else:
+                        st.success("Không có trường hợp nào bị sai lệch thông tin chi tiết!")
+                        
+                with t_match:
+                    st.write("**Danh sách nhân sự hoàn toàn trùng khớp giữa Hệ thống và tệp Excel:**")
+                    if not res['match'].empty:
+                        st.dataframe(res['match'][['Ma_NV', 'Ho_Ten', 'Ngay_Sinh', 'Khoa_Phong', 'Chuc_Vu']], use_container_width=True, hide_index=True)
+                        
+                # 3. Xuất file Báo cáo tổng hợp đối chiếu
+                output_report = io.BytesIO()
+                with pd.ExcelWriter(output_report, engine='openpyxl') as writer:
+                    res['missing_in_excel'].to_excel(writer, index=False, sheet_name='Excel_Thieu')
+                    res['extra_in_excel'].to_excel(writer, index=False, sheet_name='Excel_Thua_NhamThang')
+                    res['mismatch_detail'].to_excel(writer, index=False, sheet_name='Sai_Lech_Thong_Tin')
+                    res['match'].to_excel(writer, index=False, sheet_name='Khop_Hoan_Toan')
+                    
+                st.download_button(
+                    label="📥 TẢI BÁO CÁO KẾT QUẢ ĐỐI CHIẾU (.XLSX)",
+                    data=output_report.getvalue(),
+                    file_name=f"Bao_Cao_Doi_Chieu_T{check_month}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+                
         except Exception as e:
-            st.error(f"Lỗi nạp file: {e}")
+            st.error(f"Xảy ra lỗi khi đọc và đối chiếu tệp Excel: {e}")
 
-# -----------------------------------------------------------------------------
-# MENU 7: THIẾT LẬP HỆ THỐNG
-# -----------------------------------------------------------------------------
-elif menu == "⚙️ Thiết lập Hệ thống":
-    st.title("⚙️ THIẾT LẬP HỆ THỐNG & CƠ SỞ DỮ LIỆU")
-    st.markdown("---")
-    st.subheader("1. Thông tin CSDL SQLite")
-    st.info(f"📁 Tên file DB: `{DB_FILE}` | Tổng số bản ghi: **{len(df)}**")
+# ==========================================
+# PHÂN HỆ 3: QUẢN LÝ HỒ SƠ NHÂN SỰ
+# ==========================================
+elif menu == "📂 3. Quản lý Hồ sơ Nhân sự":
+    st.subheader("📂 DỮ LIỆU HỒ SƠ NHÂN SỰ TRÊN HỆ THỐNG")
+    
+    st.dataframe(st.session_state.df_nhansu, use_container_width=True, hide_index=True)
     
     st.markdown("---")
-    st.subheader("2. Xóa toàn bộ dữ liệu (Reset)")
-    if st.button("🗑️ XÓA TOÀN BỘ CƠ SỞ DỮ LIỆU"):
-        if os.path.exists(DB_FILE):
-            os.remove(DB_FILE)
-        init_sqlite_db()
-        st.session_state.df_nhansu = pd.DataFrame()
-        st.success("Đã xóa CSDL thành công!")
-        st.rerun()
+    st.write("**Thêm nhân sự mới vào hệ thống:**")
+    with st.form("add_nv_form"):
+        c_m, c_h, c_n = st.columns(3)
+        ma_nv = c_m.text_input("Mã Nhân viên (Ví dụ: N1025)")
+        ho_ten = c_h.text_input("Họ và tên")
+        ngay_sinh = c_n.text_input("Ngày sinh (dd/mm/yyyy)")
+        
+        c_g, c_k, c_cv = st.columns(3)
+        gioi_tinh = c_g.selectbox("Giới tính", ["Nam", "Nữ"])
+        khoa_phong = c_k.text_input("Khoa/Phòng")
+        chuc_vu = c_cv.text_input("Chức vụ")
+        
+        submitted = st.form_submit_button("Lưu nhân sự")
+        if submitted:
+            if ma_nv and ho_ten and ngay_sinh:
+                new_row = {
+                    "Ma_NV": ma_nv.strip().upper(),
+                    "Ho_Ten": ho_ten.strip(),
+                    "Ngay_Sinh": ngay_sinh.strip(),
+                    "Gioi_Tinh": gioi_tinh,
+                    "Khoa_Phong": khoa_phong.strip(),
+                    "Chuc_Vu": chuc_vu.strip()
+                }
+                st.session_state.df_nhansu = pd.concat([st.session_state.df_nhansu, pd.DataFrame([new_row])], ignore_index=True)
+                st.success(f"Đã thêm thành công nhân sự {ho_ten} ({ma_nv})!")
+                st.rerun()
+            else:
+                st.error("Vui lòng nhập đầy đủ Mã NV, Họ tên và Ngày sinh!")
