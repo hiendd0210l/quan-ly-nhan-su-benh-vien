@@ -7,7 +7,7 @@ import os
 
 # 1. CẤU HÌNH TRANG WEB
 st.set_page_config(
-    page_title="Hệ thống Quản lý Nhân sự Bệnh viện - Chuẩn 2C-BNV",
+    page_title="Hệ thống Quản lý Nhân sự Bệnh viện Bưu điện - Chuẩn 2C-BNV",
     page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded"
