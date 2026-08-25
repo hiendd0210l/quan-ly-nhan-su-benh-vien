@@ -78,7 +78,6 @@ def clean_dataframe(df_in):
     
     # Chuẩn hóa cột Ngay_Sinh
     df_clean['Ngay_Sinh_DT'] = parse_date_vietnam(df_clean['Ngay_Sinh'])
-    # Tạo thêm cột chuỗi hiển thị chuẩn Ngày/Tháng/Năm
     valid_dates = df_clean['Ngay_Sinh_DT'].notnull()
     df_clean.loc[valid_dates, 'Ngay_Sinh_HienThi'] = df_clean.loc[valid_dates, 'Ngay_Sinh_DT'].dt.strftime('%d/%m/%Y')
     df_clean.loc[~valid_dates, 'Ngay_Sinh_HienThi'] = df_clean.loc[~valid_dates, 'Ngay_Sinh']
@@ -97,7 +96,6 @@ def save_data_to_db(df_to_save):
     conn = sqlite3.connect(DB_FILE)
     df_temp = clean_dataframe(df_to_save)
     
-    # Loại bỏ các cột tạm trước khi lưu vào SQLite
     cols_to_drop = [c for c in ['Ngay_Sinh_DT', 'Ngay_Sinh_HienThi'] if c in df_temp.columns]
     df_temp = df_temp.drop(columns=cols_to_drop)
     
@@ -278,6 +276,7 @@ if menu == "🏠 Trang chủ & Tổng quan":
             df_sn = df[df['Ngay_Sinh_DT'].dt.month == next_month]
         else:
             df_luong, df_hd, df_sn = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+            next_month = (today.month % 12) + 1
 
         t1, t2, t3 = st.tabs([
             f"📈 Nâng lương ({len(df_luong)})", 
@@ -363,7 +362,7 @@ elif menu == "🔔 Trung tâm Cảnh báo Tự động":
             st.info("Tất cả nhân sự đã đạt đủ tiêu chuẩn giờ CME.")
 
 # -----------------------------------------------------------------------------
-# MENU 3: TRA CỨU & DANH SÁCH HỒ SƠ (ĐÃ ĐIỀU CHỈNH CHUẨN NGÀY/THÁNG/NĂM)
+# MENU 3: TRA CỨU & DANH SÁCH HỒ SƠ
 # -----------------------------------------------------------------------------
 elif menu == "📋 Tra cứu & Danh sách Hồ sơ":
     st.title("📋 TRA CỨU & QUẢN LÝ DANH SÁCH HỒ SƠ 2C-BNV")
@@ -388,7 +387,6 @@ elif menu == "📋 Tra cứu & Danh sách Hồ sơ":
             
         filtered = df.copy()
         
-        # Lọc từ khóa
         if search_kw:
             filtered = filtered[
                 filtered['Ho_Ten'].astype(str).str.contains(search_kw, case=False, na=False) |
@@ -397,24 +395,19 @@ elif menu == "📋 Tra cứu & Danh sách Hồ sơ":
                 filtered['So_CCHN'].astype(str).str.contains(search_kw, case=False, na=False)
             ]
             
-        # Lọc Khoa / Phòng
         if sel_khoa != "Tất cả":
             filtered = filtered[filtered['Khoa_Phong'].astype(str) == sel_khoa]
             
-        # Lọc Trạng thái công tác
         if sel_tt != "Tất cả":
             filtered = filtered[filtered['Trang_Thai'].astype(str) == sel_tt]
             
-        # Lọc Tháng sinh theo chuẩn Ngày/Tháng/Năm
         if sel_month != "Tất cả":
             selected_m = int(sel_month.replace("Tháng ", ""))
-            # Ép kiểu chuẩn Ngày/Tháng/Năm (dayfirst=True)
             filtered['Ngay_Sinh_DT'] = parse_date_vietnam(filtered['Ngay_Sinh'])
             filtered = filtered[filtered['Ngay_Sinh_DT'].dt.month == selected_m]
             
         st.write(f"Hiển thị **{len(filtered)}** / **{len(df)}** hồ sơ nhân sự:")
         
-        # Hiển thị ngày sinh theo định dạng DD/MM/YYYY
         display_df = filtered.copy()
         if 'Ngay_Sinh_HienThi' in display_df.columns:
             display_df['Ngay_Sinh'] = display_df['Ngay_Sinh_HienThi']
@@ -482,7 +475,7 @@ elif menu == "➕ Thêm mới Hồ sơ Nhân sự":
         with col9:
             trang_thai = st.selectbox("Trạng thái công tác:", ["Đang làm việc", "Nghỉ thai sản", "Đã nghỉ việc"])
 
-        btn_save = st.form_submit_button("💾 LƯU HỒ SƠ VÀO CSDI")
+        btn_save = st.form_submit_button("💾 LƯU HỒ SƠ VÀO CSDL")
         
         if btn_save:
             if not ma_nv or not ho_ten:
@@ -542,7 +535,7 @@ elif menu == "✏️ Chỉnh sửa / Xóa Hồ sơ":
                         e_luong = st.date_input("Ngày nâng lương tiếp theo:", value=pd.to_datetime(emp['Ngay_Nang_Luong']) if pd.notnull(emp['Ngay_Nang_Luong']) else datetime.now(), format="DD/MM/YYYY")
                         e_hd = st.date_input("Ngày hết hạn HĐ:", value=pd.to_datetime(emp['Ngay_Het_Han_HD']) if pd.notnull(emp['Ngay_Het_Han_HD']) else datetime.now(), format="DD/MM/YYYY")
                         
-                    btn_update = st.form_submit_button("💾 CẬP NHẬT & LƯU CSDI")
+                    btn_update = st.form_submit_button("💾 CẬP NHẬT & LƯU CSDL")
                     
                     if btn_update:
                         st.session_state.df_nhansu.at[emp_idx, 'Khoa_Phong'] = e_khoa.strip()
@@ -634,7 +627,7 @@ elif menu == "📂 Nhập / Xuất Excel (Mẫu 2C)":
                 df_cleaned = clean_dataframe(df_upload)
                 st.session_state.df_nhansu = df_cleaned
                 save_data_to_db(df_cleaned)
-                st.success(f"✅ ĐÃ NẠP THÀNH CÔNG {len(df_cleaned)} HỒ SƠ VÀO CSDI!")
+                st.success(f"✅ ĐÃ NẠP THÀNH CÔNG {len(df_cleaned)} HỒ SƠ VÀO CSDL!")
                 st.rerun()
         except Exception as e:
             st.error(f"Lỗi nạp file: {e}")
@@ -643,17 +636,26 @@ elif menu == "📂 Nhập / Xuất Excel (Mẫu 2C)":
 # MENU 7: THIẾT LẬP HỆ THỐNG
 # -----------------------------------------------------------------------------
 elif menu == "⚙️ Thiết lập Hệ thống":
-    st.title("⚙️ THIẾT LẬP HỆ THỐNG & CƠ SỞ DỮ LIỆU")
+    st.title("⚙️ THIẾT LẬP HỆ THỐNG & QUẢN TRỊ CSDL")
     st.markdown("---")
-    st.subheader("1. Thông tin CSDL SQLite")
-    st.info(f"📁 Tên file DB: `{DB_FILE}` | Tổng số bản ghi: **{len(df)}**")
+    
+    st.subheader("1. Thông tin Cơ sở Dữ liệu")
+    st.write(f"- File CSDL hiện tại: `{DB_FILE}`")
+    st.write(f"- Tổng số bản ghi trong CSDL: **{len(df)}** hồ sơ")
     
     st.markdown("---")
-    st.subheader("2. Xóa toàn bộ dữ liệu (Reset)")
-    if st.button("🗑️ XÓA TOÀN BỘ CƠ SỞ DỮ LIỆU"):
-        if os.path.exists(DB_FILE):
-            os.remove(DB_FILE)
-        init_sqlite_db()
-        st.session_state.df_nhansu = pd.DataFrame()
-        st.success("Đã xóa CSDL thành công!")
-        st.rerun()
+    st.subheader("2. Dọn dẹp & Reset Cơ sở Dữ liệu")
+    st.warning("⚠️ **CẢNH BÁO:** Thao tác xóa dữ liệu không thể hoàn tác. Hãy sao lưu/xuất file Excel trước khi tiến hành!")
+    
+    confirm_reset = st.checkbox("Tôi hiểu và muốn xóa toàn bộ dữ liệu hiện tại trong CSDL SQLite")
+    if confirm_reset:
+        if st.button("🔥 XÁC NHẬN XÓA SẠCH DỮ LIỆU CSDL"):
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute("DELETE FROM nhansu")
+            conn.commit()
+            conn.close()
+            
+            st.session_state.df_nhansu = pd.DataFrame()
+            st.success("✅ Đã xóa toàn bộ dữ liệu trong cơ sở dữ liệu SQLite!")
+            st.rerun()
