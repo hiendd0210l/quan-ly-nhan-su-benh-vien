@@ -10,7 +10,7 @@ st.set_page_config(
     page_title="Hệ thống Quản lý Nhân sự Bệnh viện Bưu điện - Chuẩn 2C-BNV",
     page_icon="🏥",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="normal"
 )
 
 DB_FILE = "nhansu_benhvien.db"
