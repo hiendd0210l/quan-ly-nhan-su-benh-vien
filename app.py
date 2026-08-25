@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 
 # 1. CẤU HÌNH TRANG (PAGE CONFIG)
 st.set_page_config(
@@ -91,7 +90,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# 3. HEADER
+# 3. HEADER BANNER
 st.markdown("""
     <div class="top-header">
         <div class="header-title">HỆ THỐNG QUẢN LÝ NHÂN SỰ BỆNH VIỆN BƯU ĐIỆN</div>
@@ -99,7 +98,7 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# 4. CỬA SỔ BÊN TRÁI: DANH MỤC MENU CHỨC NĂNG (SIDEBAR)
+# 4. DANH MỤC MENU CHỨC NĂNG (SIDEBAR)
 with st.sidebar:
     st.title("📌 DANH MỤC CHỨC NĂNG")
     
@@ -133,9 +132,10 @@ with st.sidebar:
         "Cấu hình Hệ thống"
     ], index=0, label_visibility="collapsed")
 
-# 5. CỬA SỔ BÊN PHẢI (MAIN CONTENT)
+# 5. NỘI DUNG CHÍNH (MAIN CONTENT)
 if menu_selected == "Trang chủ / Dashboard":
     
+    # --- PHẦN 1: THỐNG KÊ TỔNG QUAN ---
     st.subheader("📊 Thống kê Tổng quan Toàn Bệnh viện")
     
     col1, col2, col3, col4 = st.columns(4)
@@ -193,54 +193,32 @@ if menu_selected == "Trang chủ / Dashboard":
             </div>
         """, unsafe_allow_html=True)
 
-    st.write("")
+    st.write("") # Khoảng đệm
 
+    # --- PHẦN 2: TRUNG TÂM CẢNH BÁO TỰ ĐỘNG ---
     st.subheader("🔔 Cảnh báo Tự động & Lịch cần xử lý")
     
-    alerts_data = [
-        {
-            "Loại cảnh báo": "Hạn Hợp đồng",
-            "Mức độ": "danger",
-            "Số người": "8 người",
-            "Cán bộ đại diện / Đơn vị": "BS. Nguyễn Văn An (Khoa Ngoại Tổng hợp)",
-            "Nội dung cảnh báo chi tiết": "Hết hạn HĐLĐ 36 tháng (Đến hạn tái ký/đánh giá)",
-            "Thời hạn / Trạng thái": "Còn 15 ngày (10/09/2026)"
-        },
-        {
-            "Loại cảnh báo": "Nâng bậc lương",
-            "Mức độ": "warning",
-            "Số người": "14 người",
-            "Cán bộ đại diện / Đơn vị": "ĐD. Lê Thị Bích (Khoa Gây mê Hồi sức)",
-            "Nội dung cảnh báo chi tiết": "Đủ thời hạn nâng lương bậc 3/9 lên bậc 4/9",
-            "Thời hạn / Trạng thái": "Đến hạn T9/2026"
-        },
-        {
-            "Loại cảnh báo": "Cảnh báo CME",
-            "Mức độ": "danger",
-            "Số người": "12 người",
-            "Cán bộ đại diện / Đơn vị": "KTV. Phạm Quốc Cường (Khoa CĐHA)",
-            "Nội dung cảnh báo chi tiết": "Mới đạt 32/48 tiết CME trong chu kỳ 2 năm",
-            "Thời hạn / Trạng thái": "Thiếu 16 tiết (Cần bù gấp)"
-        },
-        {
-            "Loại cảnh báo": "Giấy phép CCHN",
-            "Mức độ": "info",
-            "Số người": "5 người",
-            "Cán bộ đại diện / Đơn vị": "ThS.BS. Hoàng Minh Đức (TT Hỗ trợ sinh sản)",
-            "Nội dung cảnh báo chi tiết": "Hồ sơ gia hạn Giấy phép hành nghề (Chu kỳ 5 năm)",
-            "Thời hạn / Trạng thái": "Hạn nộp: 30/09/2026"
-        },
-        {
-            "Loại cảnh báo": "Sinh nhật tháng",
-            "Mức độ": "success",
-            "Số người": "18 người",
-            "Cán bộ đại diện / Đơn vị": "18 Cán bộ nhân viên (Toàn Bệnh viện)",
-            "Nội dung cảnh báo chi tiết": "Danh sách CBCNV có sinh nhật trong tháng 09/2026",
-            "Thời hạn / Trạng thái": "Xem danh sách Công đoàn"
-        }
+    rows_data = [
+        ("Hạn Hợp đồng", "danger", "8 người", "BS. Nguyễn Văn An (Khoa Ngoại Tổng hợp)", "Hết hạn HĐLĐ 36 tháng (Đến hạn tái ký/đánh giá)", "Còn 15 ngày (10/09/2026)"),
+        ("Nâng bậc lương", "warning", "14 người", "ĐD. Lê Thị Bích (Khoa Gây mê Hồi sức)", "Đủ thời hạn nâng lương bậc 3/9 lên bậc 4/9", "Đến hạn T9/2026"),
+        ("Cảnh báo CME", "danger", "12 người", "KTV. Phạm Quốc Cường (Khoa CĐHA)", "Mới đạt 32/48 tiết CME trong chu kỳ 2 năm", "Thiếu 16 tiết (Cần bù gấp)"),
+        ("Giấy phép CCHN", "info", "5 người", "ThS.BS. Hoàng Minh Đức (TT Hỗ trợ sinh sản)", "Hồ sơ gia hạn Giấy phép hành nghề (Chu kỳ 5 năm)", "Hạn nộp: 30/09/2026"),
+        ("Sinh nhật tháng", "success", "18 người", "18 Cán bộ nhân viên (Toàn Bệnh viện)", "Danh sách CBCNV có sinh nhật trong tháng 09/2026", "Xem danh sách Công đoàn"),
     ]
 
-    table_html = """
+    # Ghép chuỗi HTML liên tục chuẩn định dạng
+    rows_html = "".join([
+        f'<tr style="border-bottom: 1px solid #e2e8f0;">'
+        f'<td style="padding: 10px;"><span class="badge badge-{level}">{title}</span></td>'
+        f'<td style="padding: 10px; text-align:center;"><span class="count-tag">{count}</span></td>'
+        f'<td style="padding: 10px;"><b>{person}</b></td>'
+        f'<td style="padding: 10px;">{detail}</td>'
+        f'<td style="padding: 10px;">{status}</td>'
+        f'</tr>'
+        for title, level, count, person, detail, status in rows_data
+    ])
+
+    full_table_html = f"""
     <table style="width:100%; border-collapse: collapse; font-size: 13px;">
         <thead>
             <tr style="background-color: #f1f5f9; text-align: left; border-bottom: 2px solid #cbd5e1;">
@@ -252,20 +230,7 @@ if menu_selected == "Trang chủ / Dashboard":
             </tr>
         </thead>
         <tbody>
-    """
-    
-    for row in alerts_data:
-        table_html += f"""
-        <tr style="border-bottom: 1px solid #e2e8f0;">
-            <td style="padding: 10px;"><span class="badge badge-{row['Mức độ']}">{row['Loại cảnh báo']}</span></td>
-            <td style="padding: 10px; text-align:center;"><span class="count-tag">{row['Số người']}</span></td>
-            <td style="padding: 10px;"><b>{row['Cán bộ đại diện / Đơn vị']}</b></td>
-            <td style="padding: 10px;">{row['Nội dung cảnh báo chi tiết']}</td>
-            <td style="padding: 10px;">{row['Thời hạn / Trạng thái']}</td>
-        </tr>
-        """
-        
-    table_html += """
+            {rows_html}
         </tbody>
     </table>
     <div style="text-align: right; font-size: 11px; color: #94a3b8; margin-top: 8px;">
@@ -273,7 +238,7 @@ if menu_selected == "Trang chủ / Dashboard":
     </div>
     """
     
-    st.markdown(table_html, unsafe_allow_html=True)
+    st.markdown(full_table_html, unsafe_allow_html=True)
 
 else:
     st.info(f"Bạn đang mở giao diện: **{menu_selected}**")
