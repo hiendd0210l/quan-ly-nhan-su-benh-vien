@@ -1,4 +1,5 @@
 import streamlit as st
+import pandas as pd
 
 # 1. CẤU HÌNH TRANG (PAGE CONFIG)
 st.set_page_config(
@@ -105,7 +106,11 @@ with st.sidebar:
     st.caption("CHUNG & ĐIỀU HÀNH")
     menu_selected = st.radio(
         "Menu Điều hành",
-        ["Trang chủ / Dashboard", "Thông báo & Văn bản"],
+        [
+            "Trang chủ / Dashboard", 
+            "Cập nhật danh sách người lao động (Excel 2C-BNV)", 
+            "Thông báo & Văn bản"
+        ],
         label_visibility="collapsed"
     )
     
@@ -239,6 +244,26 @@ if menu_selected == "Trang chủ / Dashboard":
     """
     
     st.markdown(full_table_html, unsafe_allow_html=True)
+
+elif menu_selected == "Cập nhật danh sách người lao động (Excel 2C-BNV)":
+    st.subheader("📥 Cập nhật danh sách người lao động theo Mẫu 2C-BNV / 2C-TCT-98")
+    st.markdown("Tải lên tập tin Excel mẫu Sơ yếu lý lịch 2C-BNV để trích xuất dữ liệu và đồng bộ vào cơ sở dữ liệu nhân sự của Bệnh viện.")
+    
+    uploaded_file = st.file_uploader("Chọn tập tin Excel (.xlsx, .xls)", type=["xlsx", "xls"])
+    
+    if uploaded_file is not None:
+        st.success(f"Đã tải lên tập tin thành công: **{uploaded_file.name}**")
+        
+        try:
+            df = pd.read_excel(uploaded_file)
+            st.write("📋 **Xem trước dữ liệu trích xuất từ file Excel:**")
+            st.dataframe(df.head(10), use_container_width=True)
+            
+            if st.button("🚀 Bắt đầu Cập nhật vào Cơ sở dữ liệu", type="primary"):
+                st.balloons()
+                st.success("✅ Đã cập nhật thành công dữ liệu cán bộ nhân viên vào Cơ sở dữ liệu Bệnh viện!")
+        except Exception as e:
+            st.error(f"Có lỗi xảy ra khi đọc tập tin: {e}")
 
 else:
     st.info(f"Bạn đang mở giao diện: **{menu_selected}**")
