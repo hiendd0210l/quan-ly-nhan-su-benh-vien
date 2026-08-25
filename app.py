@@ -89,7 +89,7 @@ st.markdown("""
             font-size: 12px;
         }
     </style>
-""", unsafe_allow_html=unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
 # 3. HEADER
 st.markdown("""
@@ -136,9 +136,6 @@ with st.sidebar:
 # 5. CỬA SỔ BÊN PHẢI (MAIN CONTENT)
 if menu_selected == "Trang chủ / Dashboard":
     
-    # -------------------------------------------------------------
-    # CỬA SỔ BÊN PHẢI PHÍA TRÊN: THỐNG KÊ TỔNG QUAN TOÀN BỆNH VIỆN
-    # -------------------------------------------------------------
     st.subheader("📊 Thống kê Tổng quan Toàn Bệnh viện")
     
     col1, col2, col3, col4 = st.columns(4)
@@ -196,14 +193,10 @@ if menu_selected == "Trang chủ / Dashboard":
             </div>
         """, unsafe_allow_html=True)
 
-    st.write("") # Khoảng trống giữa 2 phần
+    st.write("")
 
-    # -------------------------------------------------------------
-    # CỬA SỔ BÊN PHẢI PHÍA DƯỚI: TRUNG TÂM CẢNH BÁO TỰ ĐỘNG
-    # -------------------------------------------------------------
     st.subheader("🔔 Cảnh báo Tự động & Lịch cần xử lý")
     
-    # Tạo dữ liệu bảng cảnh báo
     alerts_data = [
         {
             "Loại cảnh báo": "Hạn Hợp đồng",
@@ -247,7 +240,6 @@ if menu_selected == "Trang chủ / Dashboard":
         }
     ]
 
-    # Hiển thị bảng dạng Dataframe Custom HTML
     table_html = """
     <table style="width:100%; border-collapse: collapse; font-size: 13px;">
         <thead>
