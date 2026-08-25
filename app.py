@@ -7,10 +7,10 @@ import os
 
 # 1. CẤU HÌNH TRANG WEB
 st.set_page_config(
-    page_title="Hệ thống Quản lý Nhân sự Bệnh viện Bưu điện - Chuẩn 2C-BNV",
+    page_title="Hệ thống Quản lý Nhân sự Bệnh viện - Chuẩn 2C-BNV",
     page_icon="🏥",
     layout="wide",
-    initial_sidebar_state="normal"
+    initial_sidebar_state="expanded"
 )
 
 DB_FILE = "nhansu_benhvien.db"
@@ -135,7 +135,7 @@ menu = st.sidebar.radio(
 # MENU 1: TRANG CHỦ & TỔNG QUAN
 # -----------------------------------------------------------------------------
 if menu == "🏠 Trang chủ & Tổng quan":
-    st.title("🏥 HỆ THỐNG QUẢN LÝ NHÂN SỰ BỆNH VIỆN BƯU ĐIỆN ")
+    st.title("🏥 HỆ THỐNG QUẢN LÝ NHÂN SỰ BỆNH VIỆN")
     st.markdown("---")
     
     col1, col2, col3, col4 = st.columns(4)
