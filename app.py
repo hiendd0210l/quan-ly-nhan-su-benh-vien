@@ -100,20 +100,6 @@ if 'df_nhansu' not in st.session_state:
 df = st.session_state.df_nhansu
 today = pd.to_datetime(datetime.now().date())
 
-# Các trường hỗ trợ phân loại lọc theo chuẩn 2C-BNV
-COLUMNS_2C_DICT = {
-    "Khoa_Phong": "Khoa / Phòng làm việc",
-    "Trinh_Do_Chuyen_Mon": "Trình độ chuyên môn",
-    "Chuc_Vu": "Chức vụ công tác",
-    "Trang_Thai": "Trạng thái công tác",
-    "Gioi_Tinh": "Giới tính",
-    "Dan_Toc": "Dân tộc",
-    "Loai_HD": "Loại Hợp đồng lao động",
-    "Ly_Luan_Chinh_Tri": "Lý luận chính trị",
-    "Ngach_Vien_Chuc": "Ngạch viên chức",
-    "Bac_Luong": "Bậc lương"
-}
-
 # 3. THANH MENU ĐIỀU HƯỚNG CHÍNH
 st.sidebar.image("https://img.icons8.com/color/96/hospital-2.png", width=80)
 st.sidebar.title("QUẢN LÝ NHÂN SỰ")
@@ -141,7 +127,8 @@ if menu == "🏠 Trang chủ & Tổng quan":
     
     # 1. HÀNG CHỈ SỐ NHANH
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Tổng số Nhân sự", f"{len(df)} người")
+    total_emp = len(df)
+    col1.metric("Tổng số Nhân sự", f"{total_emp} người")
     
     if not df.empty:
         bs_count = len(df[df['Trinh_Do_Chuyen_Mon'].astype(str).str.contains('Bác sĩ|Dược sĩ', case=False, na=False)])
@@ -162,78 +149,106 @@ if menu == "🏠 Trang chủ & Tổng quan":
 
     st.markdown("---")
     
-    # BỐ CỤC MỚI: BÊN TRÁI THỐNG KÊ LỌC ĐA ĐIỀU KIỆN - BÊN PHẢI CẢNH BÁO
+    # BỐ CỤC: BÊN TRÁI THỐNG KÊ LỌC & TỶ LỆ - BÊN PHẢI CẢNH BÁO
     left_col, right_col = st.columns([1.3, 1.0])
     
-    # ------------------ BÊN TRÁI: THỐNG KÊ LỌC NHIỀU ĐIỀU KIỆN ------------------
+    # ------------------ BÊN TRÁI: THỐNG KÊ LỌC & BÁO CÁO TỶ LỆ ------------------
     with left_col:
-        st.subheader("📊 THỐNG KÊ & LỌC ĐA ĐIỀU KIỆN (MẪU 2C-BNV)")
+        st.subheader("📊 THỐNG KÊ, LỌC & BÁO CÁO TỶ LỆ (2C-BNV)")
         
         if df.empty:
             st.info("Chưa có dữ liệu để lập báo cáo thống kê.")
         else:
-            with st.expander("🔍 Chọn các điều kiện lọc kết hợp (Có thể chọn nhiều điều kiện):", expanded=True):
+            with st.expander("🔍 Lọc đa điều kiện nâng cao:", expanded=True):
                 filtered_df = df.copy()
                 
-                # Tạo 2 cột lựa chọn tiêu chí lọc
                 f_col1, f_col2 = st.columns(2)
                 
                 with f_col1:
-                    # Lọc Khoa Phong
                     kp_list = ["Tất cả"] + sorted([str(x) for x in df['Khoa_Phong'].unique() if str(x).strip() != ''])
                     sel_kp = st.selectbox("1. Khoa / Phòng:", kp_list)
                     if sel_kp != "Tất cả":
                         filtered_df = filtered_df[filtered_df['Khoa_Phong'].astype(str) == sel_kp]
                         
-                    # Lọc Trình độ chuyên môn
                     td_list = ["Tất cả"] + sorted([str(x) for x in df['Trinh_Do_Chuyen_Mon'].unique() if str(x).strip() != ''])
                     sel_td = st.selectbox("2. Trình độ chuyên môn:", td_list)
                     if sel_td != "Tất cả":
                         filtered_df = filtered_df[filtered_df['Trinh_Do_Chuyen_Mon'].astype(str) == sel_td]
 
-                    # Lọc Giới tính
                     gt_list = ["Tất cả"] + sorted([str(x) for x in df['Gioi_Tinh'].unique() if str(x).strip() != ''])
                     sel_gt = st.selectbox("3. Giới tính:", gt_list)
                     if sel_gt != "Tất cả":
                         filtered_df = filtered_df[filtered_df['Gioi_Tinh'].astype(str) == sel_gt]
 
                 with f_col2:
-                    # Lọc Trạng thái công tác
                     tt_list = ["Tất cả"] + sorted([str(x) for x in df['Trang_Thai'].unique() if str(x).strip() != ''])
                     sel_tt = st.selectbox("4. Trạng thái công tác:", tt_list)
                     if sel_tt != "Tất cả":
                         filtered_df = filtered_df[filtered_df['Trang_Thai'].astype(str) == sel_tt]
 
-                    # Lọc Loại hợp đồng
                     hd_list = ["Tất cả"] + sorted([str(x) for x in df['Loai_HD'].unique() if str(x).strip() != ''])
                     sel_hd = st.selectbox("5. Loại Hợp đồng:", hd_list)
                     if sel_hd != "Tất cả":
                         filtered_df = filtered_df[filtered_df['Loai_HD'].astype(str) == sel_hd]
 
-                    # Lọc Lý luận chính trị
                     llct_list = ["Tất cả"] + sorted([str(x) for x in df['Ly_Luan_Chinh_Tri'].unique() if str(x).strip() != ''])
                     sel_llct = st.selectbox("6. Lý luận chính trị:", llct_list)
                     if sel_llct != "Tất cả":
                         filtered_df = filtered_df[filtered_df['Ly_Luan_Chinh_Tri'].astype(str) == sel_llct]
 
-            # Kết quả thống kê
-            st.markdown(f"📌 **Kết quả lọc:** Tìm thấy **{len(filtered_df)}** / **{len(df)}** hồ sơ nhân sự thỏa mãn.")
+            # BÁO CÁO TỔNG QUAN TỶ LỆ DỮ LIỆU ĐÃ LỌC
+            count_filtered = len(filtered_df)
+            pct_over_total = (count_filtered / total_emp * 100) if total_emp > 0 else 0
+            
+            st.markdown(f"📌 **Kết quả lọc:** **{count_filtered}** / **{total_emp}** nhân sự (**{pct_over_total:.1f}%** toàn đơn vị)")
+            
+            # CHỌN TRƯỜNG ĐỂ XEM PHÂN TÍCH TỶ LỆ CHI TIẾT
+            st.markdown("📈 **Báo cáo Số lượng & Tỷ lệ Phân loại:**")
+            group_col = st.selectbox(
+                "Phân tích tỷ lệ phân loại danh sách đã lọc theo:",
+                ["Khoa_Phong", "Trinh_Do_Chuyen_Mon", "Chuc_Vu", "Gioi_Tinh", "Loai_HD", "Trang_Thai", "Ly_Luan_Chinh_Tri"],
+                format_func=lambda x: {
+                    "Khoa_Phong": "1. Khoa / Phòng",
+                    "Trinh_Do_Chuyen_Mon": "2. Trình độ chuyên môn",
+                    "Chuc_Vu": "3. Chức vụ",
+                    "Gioi_Tinh": "4. Giới tính",
+                    "Loai_HD": "5. Loại Hợp đồng",
+                    "Trang_Thai": "6. Trạng thái công tác",
+                    "Ly_Luan_Chinh_Tri": "7. Lý luận chính trị"
+                }[x]
+            )
+
+            if not filtered_df.empty:
+                # Tính toán số lượng & tỷ lệ
+                df_stat = filtered_df[group_col].value_counts().reset_index()
+                df_stat.columns = ['Phân loại', 'Số lượng (người)']
+                
+                # Tỷ lệ trong nhóm lọc & Tỷ lệ toàn bệnh viện
+                df_stat['Tỷ lệ / Nhóm lọc (%)'] = (df_stat['Số lượng (người)'] / count_filtered * 100).round(1).astype(str) + '%'
+                df_stat['Tỷ lệ / Toàn đơn vị (%)'] = (df_stat['Số lượng (người)'] / total_emp * 100).round(1).astype(str) + '%'
+                
+                st.dataframe(df_stat, use_container_width=True)
+            else:
+                st.warning("Không có dữ liệu thỏa mãn điều kiện lọc.")
+
+            st.markdown("📋 **Danh sách chi tiết nhân sự đã lọc:**")
             st.dataframe(
                 filtered_df[['Ma_NV', 'Ho_Ten', 'Khoa_Phong', 'Chuc_Vu', 'Trinh_Do_Chuyen_Mon', 'Trang_Thai']], 
                 use_container_width=True, 
-                height=250
+                height=200
             )
             
-            # Xuất báo cáo lọc ra file Excel
+            # Xuất báo cáo lọc kèm Bảng phân tích tỷ lệ ra Excel
             output_report = io.BytesIO()
             with pd.ExcelWriter(output_report, engine='openpyxl') as writer:
-                # Trang 1: Danh sách chi tiết
+                if not filtered_df.empty:
+                    df_stat.to_excel(writer, index=False, sheet_name='Thong_Ke_Ty_Le')
                 filtered_df.to_excel(writer, index=False, sheet_name='Danh_Sach_Thong_Ke')
             
             st.download_button(
-                label="📥 XUẤT BÁO CÁO KẾT QUẢ THỐNG KÊ (.XLSX)",
+                label="📥 XUẤT BÁO CÁO THỐNG KÊ & TỶ LỆ (.XLSX)",
                 data=output_report.getvalue(),
-                file_name=f"Bao_Cao_Thong_Ke_Nhan_Su_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
+                file_name=f"Bao_Cao_Thong_Ke_Tyle_NhanSu_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
@@ -241,12 +256,10 @@ if menu == "🏠 Trang chủ & Tổng quan":
     with right_col:
         st.subheader("🔔 TRUNG TÂM CẢNH BÁO TỰ ĐỘNG")
         
-        # Xử lý tính toán cảnh báo
         if not df.empty:
             df_luong = df[(df['Ngay_Nang_Luong'] >= today) & (df['Ngay_Nang_Luong'] <= today + timedelta(days=60))]
             df_hd = df[(df['Ngay_Het_Han_HD'] >= today) & (df['Ngay_Het_Han_HD'] <= today + timedelta(days=30))]
             
-            # Tính toán sinh nhật tháng tiếp theo
             next_month = (today.month % 12) + 1
             if 'Ngay_Sinh_DT' in df.columns:
                 df_sn = df[df['Ngay_Sinh_DT'].dt.month == next_month]
@@ -256,7 +269,6 @@ if menu == "🏠 Trang chủ & Tổng quan":
         else:
             df_luong, df_hd, df_sn = pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
 
-        # Tabs cảnh báo
         t1, t2, t3 = st.tabs([
             f"📈 Nâng lương ({len(df_luong)})", 
             f"📄 Hợp đồng ({len(df_hd)})", 
