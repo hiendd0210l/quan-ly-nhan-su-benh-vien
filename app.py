@@ -135,7 +135,7 @@ menu = st.sidebar.radio(
 # MENU 1: TRANG CHỦ & TỔNG QUAN
 # -----------------------------------------------------------------------------
 if menu == "🏠 Trang chủ & Tổng quan":
-    st.title("🏥 HỆ THỐNG QUẢN LÝ NHÂN SỰ BỆNH VIỆN")
+    st.title("🏥 HỆ THỐNG QUẢN LÝ NHÂN SỰ BỆNH VIỆN BƯU ĐIỆN ")
     st.markdown("---")
     
     col1, col2, col3, col4 = st.columns(4)
