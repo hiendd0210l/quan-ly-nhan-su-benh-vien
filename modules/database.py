@@ -20,12 +20,8 @@ def init_db(engine):
     if engine:
         try:
             with engine.begin() as conn:
-                # Xóa bảng cũ nếu cấu trúc chưa đúng
-                conn.execute(text("DROP TABLE IF EXISTS nhan_su;"))
-                
-                # Tạo lại bảng đầy đủ 33 cột chuẩn Mẫu 2C
                 conn.execute(text("""
-                    CREATE TABLE nhan_su (
+                    CREATE TABLE IF NOT EXISTS nhan_su (
                         ma_nv VARCHAR(50) PRIMARY KEY,
                         ho_ten VARCHAR(100) NOT NULL,
                         ten_goi_khac VARCHAR(100),
