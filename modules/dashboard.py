@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 
 def render_dashboard(engine):
-    st.title("📊 DASHBOARD QUẢN TRỊ NHÂN SỰ BỆNH VIỆN BƯU ĐIỆN")
+    st.title("📊 HỆ THỐNG QUẢN TRỊ NHÂN SỰ BỆNH VIỆN BƯU ĐIỆN")
     st.caption("Cập nhật theo tiêu chuẩn quản trị nhóm lao động V3")
     st.markdown("---")
     
