@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import io
-from sqlalchemy import text, DATE
+from sqlalchemy import text
 
 # Danh sách 33 cột chuẩn theo Mẫu Lý Lịch 2C BNV
 COLUMNS_2C = [
@@ -252,12 +252,13 @@ def render_ho_so(engine):
                 st.dataframe(df_preview.head(10), use_container_width=True)
 
                 if st.button("🚀 XÁC NHẬN LƯU VĨNH VIỄN VÀO CSDL", type="primary"):
-                    dtype_dict = {d_col: DATE() for d_col in DATE_COLUMNS if d_col in df_clean.columns}
-                    
                     with engine.begin() as conn:
-                        df_clean.to_sql('nhan_su', con=conn, if_exists='replace', index=False, dtype=dtype_dict)
+                        # Xóa dữ liệu cũ an toàn
+                        conn.execute(text("DELETE FROM nhan_su;"))
+                        # Chèn dữ liệu mới mà không DROP TABLE
+                        df_clean.to_sql('nhan_su', con=conn, if_exists='append', index=False)
                     
-                    st.success(f"🎉 Đã làm sạch và lưu thành công {len(df_clean)} nhân sự vĩnh viễn vào CSDL!")
+                    st.success(f"🎉 Đã làm sạch và cập nhật thành công {len(df_clean)} nhân sự vĩnh viễn vào CSDL!")
                     st.balloons()
             except Exception as e:
                 st.error(f"❌ Lỗi xử lý file Excel: {e}")
