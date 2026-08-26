@@ -3,13 +3,12 @@ import pandas as pd
 import plotly.express as px
 
 def is_valid_value(val):
-    """Kiểm tra một giá trị có phải là dữ liệu hợp lệ (có CCHN hoặc ngày vào Đảng) hay không."""
+    """Kiểm tra một giá trị có phải là dữ liệu hợp lệ hay không."""
     if pd.isna(val):
         return False
     
     val_str = str(val).strip().lower()
     
-    # Các từ khóa/chuỗi thể hiện KHÔNG CÓ dữ liệu
     invalid_keywords = [
         '', 'none', 'nan', 'null', '0', 'không', 'khong', 
         'chưa', 'chua', 'chưa có', 'chua co', 'không có', 'khong co',
@@ -43,15 +42,11 @@ def render_dashboard(engine):
     total_staff = len(df)
 
     # 1. Tính toán chuẩn xác các chỉ số KPI
-    # Bác sĩ / Y sĩ / Chuyên khoa
     bac_si = df['trinh_do_chuyen_mon'].fillna('').apply(
         lambda x: any(kw in str(x).lower() for kw in ['bác sĩ', 'bac si', 'bs', 'cki', 'ckii', 'thạc sĩ', 'tiến sĩ'])
     ).sum()
 
-    # Nhân sự có Chứng chỉ hành nghề (CCHN)
     co_cchn = df['so_cchn'].apply(is_valid_value).sum() if 'so_cchn' in df.columns else 0
-
-    # Đảng viên (có ngày vào Đảng hợp lệ)
     dang_vien = df['ngay_vao_dang'].apply(is_valid_value).sum() if 'ngay_vao_dang' in df.columns else 0
 
     # 2. Hàng KPI tổng quan
@@ -85,7 +80,8 @@ def render_dashboard(engine):
         st.subheader("📊 Cơ cấu Nhân sự theo Khoa / Phòng")
         if 'khoa_phong' in df.columns:
             df_kp_clean = df['khoa_phong'].dropna().astype(str).str.strip()
-            df_kp_clean = df_kp_clean[~df_kp_clean.lower().isin(['none', 'nan', 'null', ''])]
+            # Lọc bỏ giá trị rỗng bằng .str.lower()
+            df_kp_clean = df_kp_clean[~df_kp_clean.str.lower().isin(['none', 'nan', 'null', ''])]
             if not df_kp_clean.empty:
                 df_kp = df_kp_clean.value_counts().head(10).reset_index()
                 df_kp.columns = ['Khoa / Phòng', 'Số lượng']
@@ -99,7 +95,8 @@ def render_dashboard(engine):
         st.subheader("🎓 Cơ cấu Trình độ Chuyên môn")
         if 'trinh_do_chuyen_mon' in df.columns:
             df_td_clean = df['trinh_do_chuyen_mon'].dropna().astype(str).str.strip()
-            df_td_clean = df_td_clean[~df_td_clean.lower().isin(['none', 'nan', 'null', ''])]
+            # Lọc bỏ giá trị rỗng bằng .str.lower()
+            df_td_clean = df_td_clean[~df_td_clean.str.lower().isin(['none', 'nan', 'null', ''])]
             if not df_td_clean.empty:
                 df_td = df_td_clean.value_counts().head(8).reset_index()
                 df_td.columns = ['Trình độ', 'Số lượng']
