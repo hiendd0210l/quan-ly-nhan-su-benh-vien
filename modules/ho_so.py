@@ -3,12 +3,18 @@ import pandas as pd
 from sqlalchemy import text
 
 DB_COLUMN_MAP = {
-    "Mã NV": "ma_nv", "Họ và tên": "ho_ten", "Giới tính": "gioi_tinh", "Ngày sinh": "ngay_sinh",
-    "Quê quán": "que_quan", "Dân tộc": "dan_toc", "Tôn giáo": "ton_giao", "Số CCCD": "cccd",
-    "Ngày cấp CCCD": "ngay_cap_cccd", "Phòng/Khoa/Trung tâm": "phong_ban", "Chức vụ": "chuc_vu",
-    "Nhóm lao động": "nhom_lao_dong", "Trình độ chuyên môn": "trinh_do_chuyen_mon",
-    "Trình độ lý luận": "trinh_do_ly_luan", "Trình độ ngoại ngữ": "trinh_do_ngoai_ngu",
-    "Ngày vào Đảng": "ngay_vao_dang", "Ngày tuyển dụng": "ngay_tuyen_dung", "Trạng thái": "trang_thai"
+    "Mã NV": "ma_nv", "Họ tên": "ho_ten", "Tên gọi khác": "ten_goi_khac", 
+    "Ngày sinh": "ngay_sinh", "Giới tính": "gioi_tinh", "Nơi sinh": "noi_sinh", 
+    "Quê quán": "que_quan", "Dân tộc": "dan_toc", "Tôn giáo": "ton_giao", 
+    "Nơi ở hiện nay": "noi_o_hien_nay", "Điện thoại": "dien_thoai", "Số CCCD": "so_cccd", 
+    "Khoa/Phòng": "khoa_phong", "Chức vụ": "chuc_vu", "Ngạch viên chức": "ngach_vien_chuc", 
+    "Bậc lương": "bac_luong", "Hệ số lương": "he_so_luong", "Ngày nâng lương": "ngay_nang_luong", 
+    "Trình độ giáo dục": "trinh_do_giao_duc", "Trình độ chuyên môn": "trinh_do_chuyen_mon", 
+    "Lý luận chính trị": "ly_luan_chinh_tri", "Ngoại ngữ": "ngoai_ngu", "Tin học": "tin_hoc", 
+    "Số CCHN": "so_cchn", "Giờ CME": "gio_cme", "Ngày vào Đảng": "ngay_vao_dang", 
+    "Ngày nhập ngũ": "ngay_nhap_ngu", "Danh hiệu phong tặng": "danh_hieu_phong_tang", 
+    "Khen thưởng kỷ luật": "khen_thuong_ky_luat", "Sức khỏe thương binh": "suc_khoe_thuong_binh", 
+    "Loại HĐ": "loai_hd", "Ngày hết hạn HĐ": "ngay_het_han_hd", "Trạng thái": "trang_thai"
 }
 
 def render_ho_so(engine):
