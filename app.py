@@ -1,42 +1,55 @@
 import streamlit as st
 import pandas as pd
-import sqlite3
 import datetime
+from sqlalchemy import create_engine, text
 
 # ==============================================================================
-# 1. KHỞI TẠO VÀ CẤU HÌNH CƠ SỞ DỮ LIỆU (SQLITE)
+# 1. KHỞI TẠO VÀ CẤU HÌNH CƠ SỞ DỮ LIỆU (POSTGRESQL - NEON.TECH)
 # ==============================================================================
-DB_FILE = "quan_ly_nhan_su.db"
+
+@st.cache_resource
+def get_db_engine():
+    try:
+        # Lấy URL kết nối từ Secrets của Streamlit Cloud
+        db_url = st.secrets["postgres"]["url"]
+        # Đảm bảo sử dụng driver postgresql
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+        return create_engine(db_url)
+    except Exception as e:
+        st.error(f"⚠️ Lỗi kết nối CSDL: {e}")
+        return None
+
+engine = get_db_engine()
 
 def init_db():
     """Khởi tạo các bảng dữ liệu nếu chưa tồn tại"""
-    conn = sqlite3.connect(DB_FILE)
-    cursor = conn.cursor()
-    
-    # Bảng nhân sự chính
-    cursor.execute("""
-    CREATE TABLE IF NOT EXISTS nhan_su (
-        ma_nv TEXT PRIMARY KEY,
-        ho_ten TEXT NOT NULL,
-        phong_ban TEXT,
-        khoi TEXT,
-        chuc_vu TEXT,
-        trinh_do TEXT,
-        chuyen_mon TEXT,
-        loai_hop_dong TEXT,
-        ngay_het_han_hd DATE,
-        bac_luong TEXT,
-        ngay_nang_luong DATE,
-        tiet_cme INTEGER DEFAULT 0,
-        so_cchn TEXT,
-        ngay_het_han_cchn DATE,
-        ngay_sinh DATE,
-        is_dang_vien INTEGER DEFAULT 0,
-        trang_thai TEXT DEFAULT 'Đang làm việc'
-    )
-    """)
-    conn.commit()
-    conn.close()
+    if engine:
+        with engine.begin() as conn:
+            conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS nhan_su (
+                    ma_nv VARCHAR(50) PRIMARY KEY,
+                    ho_ten VARCHAR(100) NOT NULL,
+                    phong_ban VARCHAR(100),
+                    khoi VARCHAR(100),
+                    chuc_vu VARCHAR(100),
+                    trinh_do VARCHAR(100),
+                    chuyen_mon VARCHAR(100),
+                    loai_hop_dong VARCHAR(100),
+                    ngay_het_han_hd DATE,
+                    bac_luong VARCHAR(50),
+                    ngay_nang_luong DATE,
+                    tiet_cme INTEGER DEFAULT 0,
+                    so_cchn VARCHAR(100),
+                    ngay_het_han_cchn DATE,
+                    ngay_sinh DATE,
+                    is_dang_vien INTEGER DEFAULT 0,
+                    trang_thai VARCHAR(50) DEFAULT 'Đang làm việc'
+                );
+            """))
+
+init_db()
+
 
 def insert_sample_data_if_empty():
     """Chèn dữ liệu mẫu thực tế ban đầu nếu CSDL đang trống"""
