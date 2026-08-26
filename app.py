@@ -1,79 +1,62 @@
 import streamlit as st
-from modules.database import get_db_engine, init_db
-from modules.auth import login_form, check_permission
-from modules.dashboard import render_dashboard
-from modules.cham_cong_truc import render_cham_cong_truc
-from modules.cchn import render_cchn
-from modules.bao_cao import render_bao_cao
-import pandas as pd
-from sqlalchemy import text
+import os
+from sqlalchemy import create_engine
 
+# Thiết lập cấu hình trang Streamlit
 st.set_page_config(
-    page_title="HRMS - Bệnh viện Bưu điện",
+    page_title="Quản trị Nhân sự Bệnh viện Bưu điện",
     page_icon="🏥",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    layout="wide"
 )
 
-# 1. Khởi tạo CSDL
+# Import các modules chức năng
+from modules.dashboard import render_dashboard
+from modules.ho_so import render_ho_so
+
+# Kết nối Cơ sở dữ liệu PostgreSQL
+@st.cache_resource
+def get_db_engine():
+    db_url = os.environ.get("DATABASE_URL")
+    if not db_url and "postgres" in st.secrets:
+        db_url = st.secrets["postgres"]["url"]
+    
+    if db_url:
+        if db_url.startswith("postgres://"):
+            db_url = db_url.replace("postgres://", "postgresql://", 1)
+        return create_engine(db_url)
+    return None
+
 engine = get_db_engine()
-if engine:
-    init_db(engine)
 
-# 2. Đăng nhập
-if "logged_in" not in st.session_state or not st.session_state["logged_in"]:
-    login_form(engine)
-    st.info("👋 Vui lòng đăng nhập từ thanh Sidebar bên trái để sử dụng hệ thống!")
-    st.stop()
+# --- THANH MENU BÊN TRÁI (SIDEBAR) ---
+st.sidebar.image("https://img.icons8.com/color/96/hospital-2.png", width=80)
+st.sidebar.title("BV BƯU ĐIỆN")
+st.sidebar.caption("Hệ thống Quản trị Nhân sự Y tế")
 
-# 3. Sidebar Menu 18 Chức năng & Cổng ESS/MSS
-st.sidebar.title(f"🏥 BV BƯU ĐIỆN")
-st.sidebar.caption(f"👤 {st.session_state.get('user_name')} | Vai trò: {st.session_state.get('role')}")
-
-if st.sidebar.button("🚪 Đăng xuất"):
-    st.session_state.clear()
-    st.rerun()
-
-st.sidebar.markdown("---")
-
-menu = st.sidebar.radio(
-    "DANH MỤC QUẢN TRỊ (18 MENU)",
+# Định nghĩa các mục Menu
+menu_choice = st.sidebar.radio(
+    "📌 MENU QUẢN LÝ",
     [
-        "1. Dashboard Tổng quan",
-        "2. Danh mục hệ thống",
-        "3. Cơ cấu tổ chức",
-        "4. Hồ sơ nhân sự (Mẫu 2C)",
-        "5. Tuyển dụng & Thử việc",
-        "6. Hợp đồng lao động",
-        "7. Điều động - Bổ nhiệm",
-        "8. Chấm công - Ca trực",
-        "9. Tiền lương & Phụ cấp Y tế",
-        "10. Đánh giá KPI Chuyên môn",
-        "11. Đào tạo & Giờ CME",
-        "12. Chứng chỉ hành nghề (CCHN)",
-        "13. Thi đua - Khen thưởng",
-        "14. Quản lý Nghỉ phép (ESS/MSS)",
-        "15. Sức khỏe & Phơi nhiễm",
-        "16. Văn bản - Quyết định",
-        "17. Báo cáo thống kê (BYT/BHXH)",
-        "18. Quản trị hệ thống & Phân quyền"
+        "📊 Dashboard Tổng quan",
+        "📂 Hồ sơ Nhân sự (Thêm/Sửa/Xóa & Import Excel)",
+        "⚙️ Cấu hình Hệ thống"
     ]
 )
 
-# 4. Điều hướng Menu
-if menu.startswith("1."):
+st.sidebar.markdown("---")
+st.sidebar.info("💡 **Hướng dẫn:** Vào mục **📂 Hồ sơ Nhân sự** để dùng chức năng Tải Excel mẫu, Upload CSDL, Thêm/Sửa/Xóa nhân sự.")
+
+# --- ĐIỀU HƯỚNG HIỂN THỊ CHỨC NĂNG ---
+if menu_choice == "📊 Dashboard Tổng quan":
     render_dashboard(engine)
-elif menu.startswith("8."):
-    render_cham_cong_truc(engine)
-elif menu.startswith("12."):
-    render_cchn(engine)
-elif menu.startswith("17."):
-    render_bao_cao(engine)
-elif menu.startswith("4."):
-    st.title("📂 QUẢN LÝ HỒ SƠ NHÂN SỰ 360° (MẪU 2C-BNV)")
+
+elif menu_choice == "📂 Hồ sơ Nhân sự (Thêm/Sửa/Xóa & Import Excel)":
+    render_ho_so(engine)
+
+elif menu_choice == "⚙️ Cấu hình Hệ thống":
+    st.title("⚙️ CẤU HÌNH HỆ THỐNG")
+    st.write("Trạng thái kết nối CSDL PostgreSQL:")
     if engine:
-        df = pd.read_sql("SELECT * FROM nhan_su", engine)
-        st.dataframe(df, use_container_width=True)
-else:
-    st.title(f"⚙️ CHỨC NĂNG: {menu}")
-    st.info("Chức năng đang được kết nối dữ liệu thời gian thực cho quy mô 1.500 nhân sự Bệnh viện Bưu điện.")
+        st.success("✅ Đã kết nối thành công với Cơ sở dữ liệu PostgreSQL!")
+    else:
+        st.error("❌ Chưa kết nối CSDL PostgreSQL. Vui lòng cấu hình Secrets trên Streamlit Cloud.")
