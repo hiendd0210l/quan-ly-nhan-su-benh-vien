@@ -36,20 +36,22 @@ st.sidebar.caption("Hệ thống Quản trị Nhân sự Y tế")
 # Danh sách đầy đủ các chức năng quản trị
 menu_choice = st.sidebar.radio(
     "📌 MENU QUẢN LÝ",
-    [
-        "📊 Dashboard Tổng quan",
-        "📂 Hồ sơ Nhân sự (Thêm/Sửa/Xóa & Excel)",
-        "📜 Quản lý CCHN & Đào tạo CME",
-        "📑 Hợp đồng Lao động & Lương",
-        "⭐ Đánh giá KPI & Thi đua Khen thưởng",
-        "🏛️ Quản lý Đảng viên & Tổ chức",
-        "🩺 Sức khỏe Nhân viên & BHXH",
-        "🚑 Tối ưu Nhân lực & Ca trực Y tế",
-        "🎯 Lộ trình Phát triển & Quy hoạch",
-        "📈 Báo cáo Nhân sự & Y tế",
-        "🤖 Trợ lý AI Nhân sự",
-        "⚙️ Cấu hình Hệ thống"
-    ]
+   # Thay đổi danh sách menu trong app.py
+menu_options = [
+    "📊 Dashboard Tổng quan",
+    "📇 Hồ sơ Nhân sự (Thêm/Sửa/Xóa & Excel)",
+    "📜 Quản lý CCHN & Đào tạo CME",
+    "📝 Quản lý Hợp đồng Lao động",     # Tách riêng
+    "💰 Quản lý Lương cơ bản",         # Tách riêng
+    "🎯 Đánh giá KPI & Thi đua Khen thưởng",
+    "🏢 Quản lý Đảng viên & Tổ chức",
+    "🩺 Sức khỏe Nhân viên & BHXH",
+    "⏰ Tối ưu Nhân lực & Ca trực Y tế",
+    "🌱 Lộ trình Phát triển & Quy hoạch",
+    "📊 Báo cáo Nhân sự & Y tế",
+    "🤖 Trợ lý AI Nhân sự",
+    "⚙️ Cấu hình Hệ thống"
+]
 )
 
 st.sidebar.markdown("---")
