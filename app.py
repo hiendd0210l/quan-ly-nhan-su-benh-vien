@@ -35,7 +35,7 @@ st.sidebar.markdown(
     unsafe_allow_html=True
 )
 
-# Danh sách menu chia theo nhóm
+# Danh sách menu chia theo nhóm đã bổ sung & cập nhật
 menu_options = [
     # CHUNG & ĐIỀU HÀNH
     "Trang chủ / Dashboard",
@@ -52,9 +52,11 @@ menu_options = [
     "Theo dõi Đào tạo CME",
     "Nâng bậc lương & Ngạch",
     "Bố trí & Điều chuyển",
+    "Quản lý BHXH",              # Bổ sung mới
+    "Quản lý chấm công",         # Bổ sung mới
     
     # BÁO CÁO & THỐNG KÊ
-    "Báo cáo BYT & Sở Y tế",
+    "Báo cáo - Thống kê",       # Sửa tên từ "Báo cáo BYT & Sở Y tế"
     "Thống kê Biến động NS",
     "Cấu hình Hệ thống"
 ]
@@ -82,6 +84,30 @@ elif menu_choice == "Hợp đồng Lao động":
 elif menu_choice == "Nâng bậc lương & Ngạch":
     import modules.luong as luong
     luong.render_luong(engine)
+
+elif menu_choice == "Quản lý BHXH":
+    try:
+        import modules.bhxh as bh
+        bh.render_bhxh(engine)
+    except Exception as e:
+        st.title("🩺 Quản lý Bảo hiểm xã hội (BHXH)")
+        st.info("Chức năng đang kết nối CSDL và hoàn thiện giao diện...")
+
+elif menu_choice == "Quản lý chấm công":
+    try:
+        import modules.cham_cong as cc
+        cc.render_cham_cong(engine)
+    except Exception as e:
+        st.title("⏰ Quản lý Chấm công & Tăng ca")
+        st.info("Chức năng đang kết nối CSDL và hoàn thiện giao diện...")
+
+elif menu_choice == "Báo cáo - Thống kê":
+    try:
+        import modules.bao_cao as bc
+        bc.render_bao_cao(engine)
+    except Exception as e:
+        st.title("📊 Báo cáo - Thống kê")
+        st.info("Chức năng đang kết nối dữ liệu báo cáo chi tiết...")
 
 else:
     st.title(f"📌 {menu_choice}")
