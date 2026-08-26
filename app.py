@@ -10,12 +10,15 @@ from sqlalchemy import create_engine, text
 @st.cache_resource
 def get_db_engine():
     try:
-        # Lấy URL kết nối từ Secrets của Streamlit Cloud
-        db_url = st.secrets["postgres"]["url"]
-        # Đảm bảo sử dụng driver postgresql
-        if db_url.startswith("postgres://"):
-            db_url = db_url.replace("postgres://", "postgresql://", 1)
-        return create_engine(db_url)
+       # Kiểm tra xem cấu hình Secrets đã tồn tại chưa
+        if "postgres" in st.secrets and "url" in st.secrets["postgres"]:
+            db_url = st.secrets["postgres"]["url"]
+            if db_url.startswith("postgres://"):
+                db_url = db_url.replace("postgres://", "postgresql://", 1)
+            return create_engine(db_url)
+        else:
+            st.error("⚠️ Chưa cấu hình chuỗi kết nối trong mục Secrets trên Streamlit Cloud!")
+            return None
     except Exception as e:
         st.error(f"⚠️ Lỗi kết nối CSDL: {e}")
         return None
