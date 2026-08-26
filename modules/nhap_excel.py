@@ -57,41 +57,29 @@ def render_nhap_excel(engine):
                 st.dataframe(import_df.head(), use_container_width=True)
                 
                 if st.button("🚀 Cập nhật toàn bộ vào Cơ sở dữ liệu"):
-                    import_df_db = import_df.rename(columns=EXCEL_COLUMN_MAP)
-                    # Chuyển đổi các cột datetime thành dạng chuỗi văn bản
-                    for col in import_df_db.columns:
-                        import_df_db[col] = import_df_db[col].astype(str).replace(['nan', 'None', 'NaT'], '')
-                    
-                    if engine:
-                        with engine.begin() as conn:
-                            for _, row in import_df_db.iterrows():
-                                conn.execute(text("""
-                                    INSERT INTO nhan_su (
-                                        ma_nv, ho_ten, ten_goi_khac, ngay_sinh, gioi_tinh, noi_sinh, que_quan,
-                                        dan_toc, ton_giao, noi_o_hien_nay, dien_thoai, so_cccd, khoa_phong,
-                                        chuc_vu, ngach_vien_chuc, bac_luong, he_so_luong, ngay_nang_luong,
-                                        trinh_do_giao_duc, trinh_do_chuyen_mon, ly_luan_chinh_tri, ngoai_ngu,
-                                        tin_hoc, so_cchn, gio_cme, ngay_vao_dang, ngay_nhap_ngu,
-                                        danh_hieu_phong_tang, khen_thuong_ky_luat, suc_khoe_thuong_binh,
-                                        loai_hd, ngay_het_han_hd, trang_thai
-                                    ) VALUES (
-                                        :ma_nv, :ho_ten, :ten_goi_khac, :ngay_sinh, :gioi_tinh, :noi_sinh, :que_quan,
-                                        :dan_toc, :ton_giao, :noi_o_hien_nay, :dien_thoai, :so_cccd, :khoa_phong,
-                                        :chuc_vu, :ngach_vien_chuc, :bac_luong, :he_so_luong, :ngay_nang_luong,
-                                        :trinh_do_giao_duc, :trinh_do_chuyen_mon, :ly_luan_chinh_tri, :ngoai_ngu,
-                                        :tin_hoc, :so_cchn, :gio_cme, :ngay_vao_dang, :ngay_nhap_ngu,
-                                        :danh_hieu_phong_tang, :khen_thuong_ky_luat, :suc_khoe_thuong_binh,
-                                        :loai_hd, :ngay_het_han_hd, :trang_thai
-                                    ) ON CONFLICT (ma_nv) DO UPDATE SET
-                                        ho_ten = EXCLUDED.ho_ten,
-                                        khoa_phong = EXCLUDED.khoa_phong,
-                                        chuc_vu = EXCLUDED.chuc_vu,
-                                        trinh_do_chuyen_mon = EXCLUDED.trinh_do_chuyen_mon,
-                                        so_cchn = EXCLUDED.so_cchn,
-                                        loai_hd = EXCLUDED.loai_hd,
-                                        trang_thai = EXCLUDED.trang_thai;
-                                """), row.to_dict())
-                        st.success(f"✅ Đã nạp thành công {len(import_df)} hồ sơ vào CSDL!")
+                    with st.spinner("⏳ Đang ghi siêu tốc toàn bộ dữ liệu vào PostgreSQL, vui lòng chờ trong vài giây..."):
+                        # Ánh xạ tên cột chuẩn CSDL
+                        import_df_db = import_df.rename(columns=EXCEL_COLUMN_MAP)
+                        
+                        # Làm sạch dữ liệu nan/null
+                        for col in import_df_db.columns:
+                            import_df_db[col] = import_df_db[col].fillna("").astype(str)
+                            import_df_db[col] = import_df_db[col].replace(['nan', 'None', 'NaT', '<NA>'], '')
+
+                        if engine:
+                            with engine.begin() as conn:
+                                # Làm sạch dữ liệu trùng lặp nếu có
+                                conn.execute(text("TRUNCATE TABLE nhan_su;"))
+                                # Ghi hàng loạt tốc độ cao
+                                import_df_db.to_sql(
+                                    name='nhan_su', 
+                                    con=conn, 
+                                    if_exists='append', 
+                                    index=False,
+                                    method='multi',
+                                    chunksize=500
+                                )
+                            st.success(f"🎉 Đã nạp thành công toàn bộ {len(import_df_db)} hồ sơ vào Cơ sở dữ liệu!")
             except Exception as e:
                 st.error(f"❌ Lỗi xử lý file Excel: {e}")
 
