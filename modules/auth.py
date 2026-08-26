@@ -2,6 +2,18 @@ import streamlit as st
 from sqlalchemy import text
 import bcrypt
 
+ROLES = {
+    "ADMIN": "Quản trị hệ thống (CNTT)",
+    "HR": "Phòng Tổ chức cán bộ / HR",
+    "BGD": "Ban Giám đốc",
+    "TRUONG_KHOA": "Trưởng khoa / Trưởng phòng",
+    "DIEU_DUONG_TRUONG": "Điều dưỡng trưởng",
+    "KE_TOAN": "Phòng Tài chính - Kế toán",
+    "DAO_TAO": "Phòng Đào tạo / CME",
+    "QLCL": "Phòng Quản lý chất lượng",
+    "ESS": "Nhân viên (Cổng ESS)"
+}
+
 def login_form(engine):
     st.sidebar.title("🔐 ĐĂNG NHẬP HỆ THỐNG")
     username = st.sidebar.text_input("Tên đăng nhập")
@@ -11,7 +23,7 @@ def login_form(engine):
         u_clean = username.strip().lower()
         p_clean = password.strip()
 
-        # Kiểm tra Tài khoản Admin mặc định
+        # Tài khoản Admin mặc định
         if u_clean == "admin" and p_clean == "admin123":
             st.session_state["logged_in"] = True
             st.session_state["user_id"] = "admin"
@@ -21,7 +33,7 @@ def login_form(engine):
             st.success("Đăng nhập thành công!")
             st.rerun()
 
-        # Kiểm tra trong CSDL PostgreSQL
+        # Kiểm tra CSDL
         if engine:
             try:
                 with engine.connect() as conn:
@@ -41,3 +53,9 @@ def login_form(engine):
                         st.sidebar.error("❌ Tài khoản hoặc mật khẩu không đúng!")
             except Exception as e:
                 st.sidebar.error(f"Lỗi kết nối CSDL: {e}")
+
+def check_permission(required_roles):
+    current_role = st.session_state.get("role", "ESS")
+    if current_role == "ADMIN" or current_role in required_roles:
+        return True
+    return False
