@@ -67,9 +67,14 @@ elif menu_choice == "📜 Quản lý CCHN & Đào tạo CME":
     st.title("📜 QUẢN LÝ CỨNG CHỈ HÀNH NGHỀ (CCHN) & ĐÀO TẠO CME")
     st.info("Chức năng theo dõi thời hạn CCHN và tổng hợp giờ đào tạo liên tục (CME) tối thiểu 48h/2 năm.")
 
-elif menu_choice == "📑 Hợp đồng Lao động & Lương":
-    st.title("📑 QUẢN LÝ HỢP ĐỒNG LAO ĐỘNG & BẬC LƯƠNG")
-    st.info("Chức năng quản lý loại hợp đồng, cảnh báo hết hạn hợp đồng và quá trình nâng lương viên chức.")
+# Gọi module hiển thị dựa theo menu được chọn
+if menu_choice == "📝 Quản lý Hợp đồng Lao động":
+    import modules.hop_dong as hd
+    hd.render_hop_dong(engine)
+
+elif menu_choice == "💰 Quản lý Lương cơ bản":
+    import modules.luong as luong
+    luong.render_luong(engine)
 
 elif menu_choice == "⭐ Đánh giá KPI & Thi đua Khen thưởng":
     st.title("⭐ ĐÁNH GIÁ KPI & THI ĐƯA KHEN THƯỞNG")
