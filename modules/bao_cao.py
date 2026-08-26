@@ -18,18 +18,21 @@ def render_bao_cao(engine):
     )
 
     if engine and st.button("📊 Trích xuất Báo cáo"):
-        df = pd.read_sql("SELECT * FROM nhan_su", engine)
-        st.success(f"✅ Đã trích xuất thành công dữ liệu cho '{report_type}' ({len(df)} dòng dữ liệu)")
-        st.dataframe(df.head(10), use_container_width=True)
+        try:
+            df = pd.read_sql("SELECT * FROM nhan_su", engine)
+            st.success(f"✅ Đã trích xuất thành công dữ liệu cho '{report_type}' ({len(df)} dòng dữ liệu)")
+            st.dataframe(df.head(10), use_container_width=True)
 
-        # Xuất File Excel
-        output = io.BytesIO()
-        with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-            df.to_excel(writer, sheet_name='Bao_Cao', index=False)
-        
-        st.download_button(
-            label="📥 Tải Báo cáo dạng Excel (.xlsx)",
-            data=output.getvalue(),
-            file_name=f"Bao_Cao_HRM_{report_type[:10]}.xlsx",
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        )
+            # Xuất File Excel
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df.to_excel(writer, sheet_name='Bao_Cao', index=False)
+            
+            st.download_button(
+                label="📥 Tải Báo cáo dạng Excel (.xlsx)",
+                data=output.getvalue(),
+                file_name=f"Bao_Cao_HRM.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+        except Exception as e:
+            st.error(f"❌ Lỗi khi xuất báo cáo: {e}")
