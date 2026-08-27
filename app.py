@@ -1,7 +1,18 @@
-# Thêm vào ngay sau st.set_page_config() trong app.py
+import streamlit as st
+import os
+from sqlalchemy import create_engine
+
+# 1. CẤU HÌNH TRANG STREAMLIT (PHẢI LÀ LỆNH STREAMLIT ĐẦU TIÊN)
+st.set_page_config(
+    page_title="Hệ thống Quản lý Nhân sự Bệnh viện Bưu điện",
+    page_icon="🏥",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# 2. TÙY CHỈNH THEME SIDEBAR TỐI MÀU (CONCEPT BAMBOOHR / CÁNH CAM)
 st.markdown("""
     <style>
-        /* Đổi màu Sidebar sang tông xám tối chuẩn Concept BambooHR */
         [data-testid="stSidebar"] {
             background-color: #2b303b !important;
         }
@@ -13,17 +24,8 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
-import streamlit as st
-import os
-from sqlalchemy import create_engine
 
-st.set_page_config(
-    page_title="Hệ thống Quản lý Nhân sự Bệnh viện Bưu điện",
-    page_icon="🏥",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
+# 3. KẾT NỐI CSDL POSTGRESQL (NEON)
 @st.cache_resource
 def init_connection():
     try:
@@ -40,17 +42,17 @@ def init_connection():
 
 engine = init_connection()
 
-# GIAO DIỆN BÊN SIDEBAR
+# 4. GIAO DIỆN BÊN SIDEBAR
 st.sidebar.markdown(
     """
     <div style="text-align: center; padding-bottom: 10px;">
-        <h3 style="color: #0d47a1; margin-bottom: 2px;">DANH MỤC CHỨC NĂNG</h3>
+        <h3 style="color: #4da6ff; margin-bottom: 2px;">DANH MỤC CHỨC NĂNG</h3>
     </div>
     """,
     unsafe_allow_html=True
 )
 
-# Danh sách menu chia theo nhóm đã bổ sung & cập nhật
+# Danh sách menu chia theo từng nhóm nghiệp vụ
 menu_options = [
     # CHUNG & ĐIỀU HÀNH
     "Trang chủ / Dashboard",
@@ -67,11 +69,11 @@ menu_options = [
     "Theo dõi Đào tạo CME",
     "Nâng bậc lương & Ngạch",
     "Bố trí & Điều chuyển",
-    "Quản lý BHXH",              # Bổ sung mới
-    "Quản lý chấm công",         # Bổ sung mới
+    "Quản lý BHXH",
+    "Quản lý chấm công",
     
     # BÁO CÁO & THỐNG KÊ
-    "Báo cáo - Thống kê",       # Sửa tên từ "Báo cáo BYT & Sở Y tế"
+    "Báo cáo - Thống kê",
     "Thống kê Biến động NS",
     "Cấu hình Hệ thống"
 ]
@@ -83,7 +85,7 @@ menu_choice = st.sidebar.radio(
     index=0
 )
 
-# ĐIỀU HƯỚNG MODULE
+# 5. ĐIỀU HƯỚNG MODULE VÀ HIỂN THỊ
 if menu_choice == "Trang chủ / Dashboard":
     import modules.dashboard as db
     db.render_dashboard(engine)
