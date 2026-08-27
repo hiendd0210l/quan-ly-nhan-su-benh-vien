@@ -32,6 +32,9 @@ def init_connection():
 
 engine = init_connection()
 
+# BASE64 LOGO CHUẨN BỆNH VIỆN BƯU ĐIỆN (TÁCH NỀN TRONG SUỐT)
+LOGO_BASE64 = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><circle cx='100' cy='100' r='96' fill='%230066b2'/><circle cx='100' cy='100' r='68' fill='%23ffffff'/><path id='tp' d='M 30,100 A 70,70 0 1,1 170,100' fill='none'/><text fill='%23ffffff' font-size='16' font-weight='bold' font-family='Arial'><textPath href='%23tp' startOffset='50%' text-anchor='middle'>BỆNH VIỆN BƯU ĐIỆN</textPath></text><text x='100' y='175' fill='%23ffffff' font-size='20' font-weight='900' font-family='Arial' text-anchor='middle' letter-spacing='3'>VNPT</text><polygon points='40,100 46,94 46,106' fill='%23ffffff'/><polygon points='160,100 154,94 154,106' fill='%23ffffff'/><rect x='86' y='65' width='28' height='70' rx='3' fill='%23e11d48'/><rect x='65' y='86' width='70' height='28' rx='3' fill='%23e11d48'/><path d='M 50,115 C 65,150 100,152 100,152 C 100,152 80,135 68,120 Z' fill='%2322c55e'/><path d='M 150,115 C 135,150 100,152 100,152 C 100,152 120,135 132,120 Z' fill='%2322c55e'/></svg>"
+
 # 4. GIAO DIỆN MÀN HÌNH ĐĂNG NHẬP
 def login_screen():
     st.markdown("""
@@ -41,17 +44,15 @@ def login_screen():
                 padding-bottom: 2rem;
             }
             
-            /* Định dạng Logo & Tiêu đề */
             .logo-container {
                 text-align: center;
-                margin-bottom: 20px;
+                margin-bottom: 15px;
             }
             .hospital-logo-img {
-                width: 110px;
-                height: 110px;
+                width: 120px;
+                height: 120px;
                 object-fit: contain;
-                margin-bottom: 12px;
-                filter: drop-shadow(0px 4px 8px rgba(0,0,0,0.1));
+                margin-bottom: 10px;
             }
             .login-title {
                 text-align: center;
@@ -60,7 +61,6 @@ def login_screen():
                 font-weight: 800;
                 margin-bottom: 4px;
                 text-transform: uppercase;
-                letter-spacing: 0.5px;
             }
             .login-subtitle {
                 text-align: center;
@@ -70,7 +70,6 @@ def login_screen():
                 font-weight: 500;
             }
 
-            /* Styling cho Form */
             [data-testid="stForm"] {
                 background: linear-gradient(145deg, #ffffff, #f8fafc);
                 padding: 30px 25px;
@@ -90,12 +89,7 @@ def login_screen():
                 color: #0f172a !important;
                 padding: 10px 14px !important;
             }
-            [data-testid="stForm"] input:focus {
-                border-color: #0284c7 !important;
-                box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15) !important;
-            }
 
-            /* Tùy chỉnh Nút Đăng Nhập & Nút Thoát */
             div[data-testid="stFormSubmitButton"] > button {
                 background: linear-gradient(135deg, #0284c7, #0369a1) !important;
                 color: white !important;
@@ -103,11 +97,6 @@ def login_screen():
                 border: none !important;
                 border-radius: 8px !important;
                 padding: 10px 0px !important;
-                transition: all 0.2s ease !important;
-            }
-            div[data-testid="stFormSubmitButton"] > button:hover {
-                background: linear-gradient(135deg, #0369a1, #075985) !important;
-                box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3) !important;
             }
         </style>
     """, unsafe_allow_html=True)
@@ -115,9 +104,9 @@ def login_screen():
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
         # LOGO VÀ TIÊU ĐỀ
-        st.markdown("""
+        st.markdown(f"""
             <div class="logo-container">
-                <img class="hospital-logo-img" src="https://upload.wikimedia.org/wikipedia/commons/thumb/1/1d/Logo_VNPT.svg/1200px-Logo_VNPT.svg.png" alt="Logo VNPT Bệnh viện Bưu điện">
+                <img class="hospital-logo-img" src="{LOGO_BASE64}" alt="Logo Bệnh viện Bưu điện">
                 <div class="login-title">BỆNH VIỆN BƯU ĐIỆN</div>
                 <div class="login-subtitle">Hệ thống Quản trị Nhân sự & Điều hành</div>
             </div>
@@ -159,10 +148,7 @@ if not st.session_state.logged_in:
     login_screen()
     st.stop()
 
-# ---------------------------------------------------------
 # GIAO DIỆN CHÍNH KHI ĐÃ ĐĂNG NHẬP THÀNH CÔNG
-# ---------------------------------------------------------
-
 st.markdown("""
     <style>
         [data-testid="stSidebar"] {
@@ -171,13 +157,9 @@ st.markdown("""
         [data-testid="stSidebar"] * {
             color: #d1d5db !important;
         }
-        [data-testid="stSidebar"] .stRadio label:hover {
-            color: #ffffff !important;
-        }
     </style>
 """, unsafe_allow_html=True)
 
-# SIDEBAR
 st.sidebar.markdown(
     f"""
     <div style="text-align: center; padding-bottom: 10px;">
@@ -194,71 +176,28 @@ if st.sidebar.button("🚪 Đăng xuất", use_container_width=True):
     st.rerun()
 
 menu_options = [
-    "Trang chủ / Dashboard",
-    "Thông báo & Văn bản",
-    "Hồ sơ Cán bộ CNV",
-    "Phân loại Trình độ",
-    "Hợp đồng Lao động",
-    "Hồ sơ Đảng viên",
-    "Giấy phép hành nghề (GPHN)",
-    "Theo dõi Đào tạo CME",
-    "Nâng bậc lương & Ngạch",
-    "Bố trí & Điều chuyển",
-    "Quản lý BHXH",
-    "Quản lý chấm công",
-    "Báo cáo - Thống kê",
-    "Thống kê Biến động NS",
-    "Cấu hình Hệ thống"
+    "Trang chủ / Dashboard", "Thông báo & Văn bản", "Hồ sơ Cán bộ CNV", 
+    "Phân loại Trình độ", "Hợp đồng Lao động", "Hồ sơ Đảng viên", 
+    "Giấy phép hành nghề (GPHN)", "Theo dõi Đào tạo CME", "Nâng bậc lương & Ngạch", 
+    "Bố trí & Điều chuyển", "Quản lý BHXH", "Quản lý chấm công", 
+    "Báo cáo - Thống kê", "Thống kê Biến động NS", "Cấu hình Hệ thống"
 ]
 
 st.sidebar.markdown("---")
-menu_choice = st.sidebar.radio(
-    label="Điều hướng chức năng:",
-    options=menu_options,
-    index=0
-)
+menu_choice = st.sidebar.radio(label="Điều hướng chức năng:", options=menu_options, index=0)
 
-# ĐIỀU HƯỚNG MODULE
 if menu_choice == "Trang chủ / Dashboard":
     import modules.dashboard as db
     db.render_dashboard(engine, user_info=st.session_state.user_info)
-
 elif menu_choice == "Hồ sơ Cán bộ CNV":
     import modules.ho_so as hs
     hs.render_ho_so(engine)
-
 elif menu_choice == "Hợp đồng Lao động":
     import modules.hop_dong as hd
     hd.render_hop_dong(engine)
-
 elif menu_choice == "Nâng bậc lương & Ngạch":
     import modules.luong as luong
     luong.render_luong(engine)
-
-elif menu_choice == "Quản lý BHXH":
-    try:
-        import modules.bhxh as bh
-        bh.render_bhxh(engine)
-    except Exception as e:
-        st.title("🩺 Quản lý Bảo hiểm xã hội (BHXH)")
-        st.info("Chức năng đang kết nối CSDL và hoàn thiện giao diện...")
-
-elif menu_choice == "Quản lý chấm công":
-    try:
-        import modules.cham_cong as cc
-        cc.render_cham_cong(engine)
-    except Exception as e:
-        st.title("⏰ Quản lý Chấm công & Tăng ca")
-        st.info("Chức năng đang kết nối CSDL và hoàn thiện giao diện...")
-
-elif menu_choice == "Báo cáo - Thống kê":
-    try:
-        import modules.bao_cao as bc
-        bc.render_bao_cao(engine)
-    except Exception as e:
-        st.title("📊 Báo cáo - Thống kê")
-        st.info("Chức năng đang kết nối dữ liệu báo cáo chi tiết...")
-
 else:
     st.title(f"📌 {menu_choice}")
     st.info("Chức năng đang trong quá trình kết nối dữ liệu chi tiết...")
