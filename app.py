@@ -1,3 +1,18 @@
+# Thêm vào ngay sau st.set_page_config() trong app.py
+st.markdown("""
+    <style>
+        /* Đổi màu Sidebar sang tông xám tối chuẩn Concept BambooHR */
+        [data-testid="stSidebar"] {
+            background-color: #2b303b !important;
+        }
+        [data-testid="stSidebar"] * {
+            color: #d1d5db !important;
+        }
+        [data-testid="stSidebar"] .stRadio label:hover {
+            color: #ffffff !important;
+        }
+    </style>
+""", unsafe_allow_html=True)
 import streamlit as st
 import os
 from sqlalchemy import create_engine
