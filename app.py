@@ -10,7 +10,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# 2. KHỞI TẠO SESSION STATE ĐĂNG NHẬP
+# 2. KHỞI TẠO SESSION STATE
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "user_info" not in st.session_state:
@@ -32,39 +32,38 @@ def init_connection():
 
 engine = init_connection()
 
-# 4. GIAO DIỆN MÀN HÌNH ĐĂNG NHẬP (LÀM ĐẸP THEO CONCEPT Y TẾ)
+# 4. GIAO DIỆN MÀN HÌNH ĐĂNG NHẬP
 def login_screen():
-    # Styling CSS cho Nền, Ô nhập liệu, Logo & Nút bấm
     st.markdown("""
         <style>
-            /* Nền tổng thể mềm mại */
             .main .block-container {
                 padding-top: 3rem;
                 padding-bottom: 3rem;
             }
             
             /* Khung Form Đăng nhập */
-            [data-testid="stForm"] {
-                background: linear-gradient(145deg, #ffffff, #f0f4f9);
+            .login-card {
+                background: linear-gradient(145deg, #ffffff, #f8fafc);
                 padding: 35px 30px;
                 border-radius: 16px;
-                box-shadow: 0 10px 25px rgba(13, 71, 161, 0.12);
-                border: 1px solid #e1e8f0;
+                box-shadow: 0 10px 25px rgba(13, 71, 161, 0.1);
+                border: 1px solid #e2e8f0;
+                margin-bottom: 20px;
             }
 
-            /* Định dạng Logo & Tiêu đề */
+            /* Định dạng SVG Logo & Tiêu đề */
             .logo-container {
                 text-align: center;
                 margin-bottom: 15px;
             }
-            .hospital-logo {
-                width: 90px;
-                height: auto;
+            .hospital-logo-svg {
+                width: 100px;
+                height: 100px;
                 margin-bottom: 10px;
             }
             .login-title {
                 text-align: center;
-                color: #0d47a1;
+                color: #0056b3;
                 font-size: 24px;
                 font-weight: 800;
                 margin-bottom: 4px;
@@ -73,7 +72,7 @@ def login_screen():
             }
             .login-subtitle {
                 text-align: center;
-                color: #5c6b73;
+                color: #64748b;
                 font-size: 14px;
                 margin-bottom: 25px;
                 font-weight: 500;
@@ -86,7 +85,7 @@ def login_screen():
                 font-size: 14px !important;
             }
             [data-testid="stForm"] input {
-                background-color: #f8fafc !important;
+                background-color: #ffffff !important;
                 border: 1.5px solid #cbd5e1 !important;
                 border-radius: 8px !important;
                 color: #0f172a !important;
@@ -113,28 +112,55 @@ def login_screen():
             }
 
             /* Tùy chỉnh Nút Thoát */
-            div.element-container:has(button[key="btn_exit"]) button {
-                background: linear-gradient(135deg, #64748b, #475569) !important;
-                color: white !important;
-                font-weight: 700 !important;
-                border: none !important;
+            div.element-container:has(button[key="btn_exit_outside"]) button {
+                background: #f1f5f9 !important;
+                color: #475569 !important;
+                font-weight: 600 !important;
+                border: 1px solid #cbd5e1 !important;
                 border-radius: 8px !important;
-                padding: 10px 0px !important;
+                padding: 9px 0px !important;
                 transition: all 0.2s ease !important;
             }
-            div.element-container:has(button[key="btn_exit"]) button:hover {
-                background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
-                box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
+            div.element-container:has(button[key="btn_exit_outside"]) button:hover {
+                background: #fee2e2 !important;
+                color: #dc2626 !important;
+                border-color: #fca5a5 !important;
             }
         </style>
     """, unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        # LOGO & TIÊU ĐỀ
+        # LOGO CHUẨN VECTOR VỚI CHỮ BỆNH VIỆN BƯU ĐIỆN & CHỮ THẬP ĐỎ & LOGO VNPT
         st.markdown("""
             <div class="logo-container">
-                <img class="hospital-logo" src="https://buudienhospital.vn/wp-content/uploads/2021/08/logo-bvbd.png" alt="Logo Bệnh viện Bưu điện">
+                <svg class="hospital-logo-svg" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+                    <!-- Vòng tròn nền xanh dương -->
+                    <circle cx="100" cy="100" r="96" fill="#0066b2" />
+                    <!-- Vòng tròn trắng bên trong -->
+                    <circle cx="100" cy="100" r="68" fill="#ffffff" />
+                    
+                    <!-- Chữ cong BỆNH VIỆN BƯU ĐIỆN -->
+                    <path id="text-path" d="M 30,100 A 70,70 0 1,1 170,100" fill="none" />
+                    <text fill="#ffffff" font-size="16" font-weight="bold" font-family="Arial, sans-serif">
+                        <textPath href="#text-path" startOffset="50%" text-anchor="middle">
+                            BỆNH VIỆN BƯU ĐIỆN
+                        </textPath>
+                    </text>
+
+                    <!-- Chữ VNPT phía dưới -->
+                    <text x="100" y="175" fill="#ffffff" font-size="20" font-weight="900" font-family="Arial, sans-serif" text-anchor="middle" letter-spacing="3">VNPT</text>
+                    <polygon points="40,100 46,94 46,106" fill="#ffffff"/>
+                    <polygon points="160,100 154,94 154,106" fill="#ffffff"/>
+
+                    <!-- Chữ thập đỏ trung tâm -->
+                    <rect x="86" y="65" width="28" height="70" rx="3" fill="#e11d48" />
+                    <rect x="65" y="86" width="70" height="28" rx="3" fill="#e11d48" />
+
+                    <!-- Họa tiết bàn tay lá cây ôm phía dưới -->
+                    <path d="M 50,115 C 65,150 100,152 100,152 C 100,152 80,135 68,120 Z" fill="#22c55e" />
+                    <path d="M 150,115 C 135,150 100,152 100,152 C 100,152 120,135 132,120 Z" fill="#22c55e" />
+                </svg>
                 <div class="login-title">BỆNH VIỆN BƯU ĐIỆN</div>
                 <div class="login-subtitle">Hệ thống Quản trị Nhân sự & Điều hành</div>
             </div>
@@ -142,20 +168,16 @@ def login_screen():
         
         # FORM ĐĂNG NHẬP
         with st.form("login_form"):
-            # Để trống văn bản, hiển thị gợi ý placeholder
             username = st.text_input("Tên đăng nhập / Username:", value="", placeholder="Nhập tên đăng nhập...")
             password = st.text_input("Mật khẩu / Password:", type="password", value="", placeholder="Nhập mật khẩu...")
             st.markdown("<br>", unsafe_allow_html=True)
 
-            # Chia 2 cột cho Nút Đăng nhập & Nút Thoát
             btn_col1, btn_col2 = st.columns(2)
-            
             with btn_col1:
                 submit_button = st.form_submit_button("🔑 Đăng nhập", use_container_width=True)
-            
             with btn_col2:
-                # Nút Thoát bên cạnh nút Đăng nhập
-                exit_button = st.form_submit_button("❌ Thoát", use_container_width=True)
+                # Nút thoát bên trong form hỗ trợ submit thoát nhanh
+                exit_in_form = st.form_submit_button("❌ Thoát", use_container_width=True)
 
             if submit_button:
                 if username == "admin" and password == "admin123":
@@ -172,11 +194,11 @@ def login_screen():
                 else:
                     st.error("❌ Tên đăng nhập hoặc mật khẩu không chính xác!")
 
-            if exit_button:
+            if exit_in_form:
                 st.info("Cảm ơn bạn đã sử dụng hệ thống!")
                 st.stop()
 
-# NẾU CHƯA ĐĂNG NHẬP -> HIỂN THỊ MÀN HÌNH ĐĂNG NHẬP MỚI
+# KIỂM TRA ĐĂNG NHẬP
 if not st.session_state.logged_in:
     login_screen()
     st.stop()
