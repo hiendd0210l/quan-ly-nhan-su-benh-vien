@@ -1,209 +1,206 @@
 import streamlit as st
 import pandas as pd
-from sqlalchemy import text
 
 def render_dashboard(engine):
-    # CSS TÙY CHỈNH ĐỂ TẠO BANNER VÀ CÁC THẺ CARD GIỐNG MẪU
+    # CSS TÙY CHỈNH THEO CONCEPT CÁNH CAM / BAMBOOHR (TILE CARDS + PROFILE HEADER)
     st.markdown("""
     <style>
-        .header-banner {
-            background-color: #004b93;
+        /* Profile Header */
+        .profile-container {
+            display: flex;
+            align-items: center;
+            background-color: #ffffff;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+        }
+        .profile-avatar {
+            width: 85px;
+            height: 85px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 3px solid #0056b3;
+            margin-right: 20px;
+        }
+        .profile-greeting {
+            font-size: 32px;
+            font-weight: 700;
+            color: #2b3a4a;
+            margin: 0;
+            line-height: 1.2;
+        }
+        .profile-role {
+            font-size: 16px;
+            color: #6c757d;
+            margin-top: 4px;
+            font-weight: 500;
+        }
+
+        /* Metro Tile Cards */
+        .tile-card {
+            border-radius: 10px;
+            padding: 22px;
             color: white;
-            padding: 15px 20px;
-            border-radius: 4px;
+            min-height: 180px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
             margin-bottom: 20px;
         }
-        .header-title {
-            font-size: 24px;
-            font-weight: bold;
-            margin: 0;
-            text-transform: uppercase;
+        .tile-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
         }
-        .header-sub {
-            font-size: 13px;
-            margin: 0;
-            opacity: 0.9;
-        }
-        .card-box {
-            border: 1px solid #e0e0e0;
-            border-radius: 6px;
-            padding: 15px;
-            background-color: #ffffff;
-            min-height: 190px;
-        }
-        .card-title {
-            font-size: 13px;
-            font-weight: bold;
-            color: #555555;
-            text-transform: uppercase;
-            margin-bottom: 5px;
-        }
-        .card-value {
-            font-size: 26px;
-            font-weight: bold;
-            color: #000000;
+        .tile-icon {
+            font-size: 32px;
             margin-bottom: 10px;
         }
-        .card-detail {
+        .tile-title {
+            font-size: 16px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 8px;
+        }
+        .tile-desc {
             font-size: 13px;
-            color: #333333;
-            line-height: 1.6;
+            opacity: 0.92;
+            line-height: 1.4;
+            flex-grow: 1;
         }
-        .badge-red {
-            background-color: #f8d7da;
-            color: #721c24;
-            padding: 3px 8px;
-            border-radius: 4px;
+        .tile-action {
+            font-size: 13px;
             font-weight: bold;
-            font-size: 12px;
+            text-align: right;
+            margin-top: 15px;
+            letter-spacing: 1px;
         }
-        .badge-yellow {
-            background-color: #fff3cd;
-            color: #856404;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 12px;
-        }
-        .badge-blue {
-            background-color: #d1ecf1;
-            color: #0c5460;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 12px;
-        }
-        .badge-green {
-            background-color: #d4edda;
-            color: #155724;
-            padding: 3px 8px;
-            border-radius: 4px;
-            font-weight: bold;
-            font-size: 12px;
-        }
+
+        /* Màu nền riêng cho từng khối chức năng */
+        .bg-red { background: linear-gradient(135deg, #ea5455, #e35d6a); }
+        .bg-teal { background: linear-gradient(135deg, #1cb14b, #20c997); }
+        .bg-blue { background: linear-gradient(135deg, #2b70e4, #3b82f6); }
+        .bg-dark { background: linear-gradient(135deg, #343a40, #495057); }
+        .bg-orange { background: linear-gradient(135deg, #fd7e14, #ff922b); }
+        .bg-green { background: linear-gradient(135deg, #20c997, #0ca678); }
     </style>
     """, unsafe_allow_html=True)
 
-    # 1. HEADER BANNER
+    # 1. HEADER CHÀO MỪNG CÁ NHÂN HÓA (PROFILE HEADER)
     st.markdown("""
-        <div class="header-banner">
-            <div class="header-title">HỆ THỐNG QUẢN LÝ NHÂN SỰ BỆNH VIỆN BƯU ĐIỆN</div>
-            <div class="header-sub">Hệ thống thông tin Quản trị Nhân sự & Điều hành Trung tâm (Smart HR-Hospital)</div>
+        <div class="profile-container">
+            <img class="profile-avatar" src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&auto=format&fit=crop" alt="User Avatar">
+            <div>
+                <div class="profile-greeting">Xin chào, Ban Giám Đốc</div>
+                <div class="profile-role">Hệ thống Quản trị Nhân sự & Điều hành Trung tâm — Bệnh viện Bưu điện</div>
+            </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # 2. KHU VỰC THỐNG KÊ TỔNG QUAN
-    st.subheader("Thống kê Tổng quan toàn Bệnh viện")
-    c1, c2, c3, c4 = st.columns(4)
+    # 2. HÀNG 1 CÁC KHỐI THẺ CHỨC NĂNG (METRO TILES - ROW 1)
+    col1, col2, col3 = st.columns(3)
 
-    # Đọc dữ liệu từ DB (Nếu chưa có dữ liệu sẽ fallback về tham số mặc định)
-    total_ns = 877
-    if engine:
-        try:
-            df_count = pd.read_sql("SELECT COUNT(*) as total FROM nhan_su", engine)
-            if not df_count.empty and df_count['total'][0] > 0:
-                total_ns = df_count['total'][0]
-        except:
-            pass
-
-    with c1:
-        st.markdown(f"""
-            <div class="card-box" style="border-top: 4px solid #004b93;">
-                <div class="card-title">TỔNG SỐ LAO ĐỘNG</div>
-                <div class="card-value">{total_ns}</div>
-                <div class="card-detail">
-                    • Khối Lâm sàng: <b>512</b><br>
-                    • Khối Cận lâm sàng: <b>210</b><br>
-                    • Khối Phòng ban: <b>155</b>
+    with col1:
+        st.markdown("""
+            <div class="tile-card bg-red">
+                <div>
+                    <div class="tile-icon">📇</div>
+                    <div class="tile-title">HỒ SƠ CÁN BỘ CNV</div>
+                    <div class="tile-desc">Theo dõi, cập nhật và quản lý toàn bộ danh sách hồ sơ 877 nhân sự toàn bệnh viện.</div>
                 </div>
+                <div class="tile-action">XEM CHI TIẾT ➔</div>
             </div>
         """, unsafe_allow_html=True)
 
-    with c2:
+    with col2:
         st.markdown("""
-            <div class="card-box" style="border-top: 4px solid #004b93;">
-                <div class="card-title">TRÌNH ĐỘ CHUYÊN MÔN</div>
-                <div class="card-value">100%</div>
-                <div class="card-detail">
-                    • TS/CKII/ThS/CKI: <b>245</b> (28%)<br>
-                    • Bác sĩ / Dược sĩ: <b>180</b> (20.5%)<br>
-                    • ĐĐ/KTV Đại học: <b>320</b> (36.5%)<br>
-                    • Khác: <b>132</b> (15%)
+            <div class="tile-card bg-teal">
+                <div>
+                    <div class="tile-icon">📊</div>
+                    <div class="tile-title">BÁO CÁO & THỐNG KÊ</div>
+                    <div class="tile-desc">Truy xuất dữ liệu báo cáo BYT, Sở Y tế và biến động nhân sự theo thời gian thực.</div>
                 </div>
+                <div class="tile-action">XEM BÁO CÁO ➔</div>
             </div>
         """, unsafe_allow_html=True)
 
-    with c3:
+    with col3:
         st.markdown("""
-            <div class="card-box" style="border-top: 4px solid #28a745;">
-                <div class="card-title">PHÂN LOẠI HỢP ĐỒNG</div>
-                <div class="card-value">877</div>
-                <div class="card-detail">
-                    • HĐ Không xác định TH: <b>620</b><br>
-                    • HĐ Xác định thời hạn: <b>215</b><br>
-                    • Chuyên gia hưu trí: <b>42</b>
+            <div class="tile-card bg-blue">
+                <div>
+                    <div class="tile-icon">📜</div>
+                    <div class="tile-title">GPHN & ĐÀO TẠO CME</div>
+                    <div class="tile-desc">Quản lý Chứng chỉ hành nghề và tiến độ tích lũy 48 tiết CME của Bác sĩ / Điều dưỡng.</div>
                 </div>
+                <div class="tile-action">XEM CHI TIẾT ➔</div>
             </div>
         """, unsafe_allow_html=True)
 
-    with c4:
+    # 3. HÀNG 2 CÁC KHỐI THẺ CHỨC NĂNG (METRO TILES - ROW 2)
+    col4, col5, col6 = st.columns(3)
+
+    with col4:
         st.markdown("""
-            <div class="card-box" style="border-top: 4px solid #ffc107;">
-                <div class="card-title">TRẠNG THÁI & ĐẢNG VIÊN</div>
-                <div class="card-value">238 <span style="font-size: 16px; font-weight: normal;">Đảng viên</span></div>
-                <div class="card-detail">
-                    • Đang làm việc: <b>865</b> (98.6%)<br>
-                    • Tạm hoãn/Nghỉ thai sản: <b>12</b><br>
-                    • Tỷ lệ Đảng viên: <b>27.1%</b>
+            <div class="tile-card bg-dark">
+                <div>
+                    <div class="tile-icon">📝</div>
+                    <div class="tile-title">HỢP ĐỒNG LAO ĐỘNG</div>
+                    <div class="tile-desc">Theo dõi hợp đồng xác định thời hạn, không xác định thời hạn và lịch tái ký.</div>
                 </div>
+                <div class="tile-action">QUẢN LÝ HĐ ➔</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col5:
+        st.markdown("""
+            <div class="tile-card bg-orange">
+                <div>
+                    <div class="tile-icon">💰</div>
+                    <div class="tile-title">NÂNG BẬC LƯƠNG & NGẠCH</div>
+                    <div class="tile-desc">Quản lý hệ số lương, ngạch viên chức và cảnh báo danh sách đủ điều kiện nâng lương.</div>
+                </div>
+                <div class="tile-action">XEM DANH SÁCH ➔</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col6:
+        st.markdown("""
+            <div class="tile-card bg-green">
+                <div>
+                    <div class="tile-icon">🩺</div>
+                    <div class="tile-title">QUẢN LÝ BHXH & SỨC KHỎE</div>
+                    <div class="tile-desc">Theo dõi chế độ Bảo hiểm xã hội, đóng BHXH và đợt khám sức khỏe định kỳ.</div>
+                </div>
+                <div class="tile-action">CHI TIẾT ➔</div>
             </div>
         """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 3. KHU VỰC CẢNH BÁO TỰ ĐỘNG & LỊCH CẦN XỬ LÝ
-    st.subheader("Cảnh báo Tự động & Lịch cần xử lý")
-
+    # 4. KHU VỰC CẢNH BÁO TỰ ĐỘNG BÊN DƯỚI
+    st.subheader("📌 Cảnh báo Tự động & Lịch cần xử lý")
+    
     alert_data = [
         {
             "Loại cảnh báo": "Hạn Hợp đồng",
-            "Họ và tên / Đơn vị": "BS. Nguyễn Văn An\nKhoa Ngoại Tổng hợp",
-            "Nội dung cảnh báo chi tiết": "Hết hạn HĐLĐ 36 tháng (Đến hạn tái ký/đánh giá)",
+            "Họ và tên / Đơn vị": "BS. Nguyễn Văn An (Khoa Ngoại TH)",
+            "Nội dung chi tiết": "Hết hạn HĐLĐ 36 tháng (Đến hạn tái ký/đánh giá)",
             "Thời hạn / Trạng thái": "Còn 15 ngày (10/09/2026)"
         },
         {
             "Loại cảnh báo": "Nâng bậc lương",
-            "Họ và tên / Đơn vị": "ĐĐ. Lê Thị Bích\nKhoa Gây mê Hồi sức",
-            "Nội dung cảnh báo chi tiết": "Đủ thời hạn nâng lương bậc 3/9 lên bậc 4/9",
+            "Họ và tên / Đơn vị": "ĐĐ. Lê Thị Bích (Khoa GMHS)",
+            "Nội dung chi tiết": "Đủ thời hạn nâng lương bậc 3/9 lên bậc 4/9",
             "Thời hạn / Trạng thái": "Đến hạn T9/2026"
         },
         {
             "Loại cảnh báo": "Cảnh báo CME",
-            "Họ và tên / Đơn vị": "KTV. Phạm Quốc Cường\nKhoa CĐHA",
-            "Nội dung cảnh báo chi tiết": "Mới đạt 32/48 tiết CME trong chu kỳ 2 năm",
+            "Họ và tên / Đơn vị": "KTV. Phạm Quốc Cường (Khoa CĐHA)",
+            "Nội dung chi tiết": "Mới đạt 32/48 tiết CME trong chu kỳ 2 năm",
             "Thời hạn / Trạng thái": "Thiếu 16 tiết (Cần bù gấp)"
-        },
-        {
-            "Loại cảnh báo": "Giấy phép CCHN",
-            "Họ và tên / Đơn vị": "ThS.BS. Hoàng Minh Đức\nTT Hỗ trợ sinh sản",
-            "Nội dung cảnh báo chi tiết": "Hồ sơ gia hạn Giấy phép hành nghề (Chu kỳ 5 năm)",
-            "Thời hạn / Trạng thái": "Hạn nộp: 30/09/2026"
-        },
-        {
-            "Loại cảnh báo": "Sinh nhật tháng",
-            "Họ và tên / Đơn vị": "18 Cán bộ nhân viên\nToàn Bệnh viện",
-            "Nội dung cảnh báo chi tiết": "Danh sách CBCNV có sinh nhật trong tháng 09/2026",
-            "Thời hạn / Trạng thái": "Xem danh sách gửi Công đoàn"
         }
     ]
-
-    df_alert = pd.DataFrame(alert_data)
-    
-    # Hiển thị bảng cảnh báo có định dạng
-    st.dataframe(
-        df_alert,
-        use_container_width=True,
-        hide_index=True
-    )
-
-    st.caption("* Cập nhật tự động theo thời gian thực từ CSDL Quản trị Nhân sự Bệnh viện Bưu điện")
+    st.dataframe(pd.DataFrame(alert_data), use_container_width=True, hide_index=True)
