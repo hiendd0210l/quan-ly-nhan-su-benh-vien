@@ -1,8 +1,13 @@
 import streamlit as st
 import pandas as pd
 
-def render_dashboard(engine):
-    # CSS TÙY CHỈNH THEO CONCEPT CÁNH CAM / BAMBOOHR (TILE CARDS + PROFILE HEADER)
+def render_dashboard(engine, user_info=None):
+    # Lấy thông tin user nếu có, nếu không lấy mặc định
+    user_name = user_info.get("name", "admin") if user_info else "admin"
+    user_role = user_info.get("role", "Hệ thống Quản trị Nhân sự & Điều hành — Bệnh viện Bưu điện") if user_info else "Hệ thống Quản trị Nhân sự"
+    user_avatar = user_info.get("avatar", "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop") if user_info else "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop"
+
+    # CSS TÙY CHỈNH THEO CONCEPT CÁNH CAM / BAMBOOHR
     st.markdown("""
     <style>
         /* Profile Header */
@@ -79,7 +84,7 @@ def render_dashboard(engine):
             letter-spacing: 1px;
         }
 
-        /* Màu nền riêng cho từng khối chức năng */
+        /* Màu nền riêng cho từng khối */
         .bg-red { background: linear-gradient(135deg, #ea5455, #e35d6a); }
         .bg-teal { background: linear-gradient(135deg, #1cb14b, #20c997); }
         .bg-blue { background: linear-gradient(135deg, #2b70e4, #3b82f6); }
@@ -89,13 +94,13 @@ def render_dashboard(engine):
     </style>
     """, unsafe_allow_html=True)
 
-    # 1. HEADER CHÀO MỪNG CÁ NHÂN HÓA (PROFILE HEADER)
-    st.markdown("""
+    # 1. HEADER CHÀO MỪNG DỰA TRÊN THÔNG TIN ĐĂNG NHẬP
+    st.markdown(f"""
         <div class="profile-container">
-            <img class="profile-avatar" src="https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?q=80&w=200&auto=format&fit=crop" alt="User Avatar">
+            <img class="profile-avatar" src="{user_avatar}" alt="User Avatar">
             <div>
-                <div class="profile-greeting">Xin chào, Ban Giám Đốc</div>
-                <div class="profile-role">Hệ thống Quản trị Nhân sự & Điều hành Trung tâm — Bệnh viện Bưu điện</div>
+                <div class="profile-greeting">Xin chào, {user_name}</div>
+                <div class="profile-role">{user_role}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
