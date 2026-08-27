@@ -32,7 +32,7 @@ def init_connection():
 
 engine = init_connection()
 
-# 4. CHUỖI BASE64 LOGO CHUẨN BỆNH VIỆN BƯU ĐIỆN (TÁCH NỀN HOÀN TOÀN)
+# 4. CHUỖI BASE64 LOGO CHUẨN BỆNH VIỆN BƯU ĐIỆN (2 NGÔI SAO, TÁCH NỀN)
 LOGO_BASE64 = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'><circle cx='100' cy='100' r='96' fill='%23006cb7'/><circle cx='100' cy='100' r='66' fill='%23ffffff'/><path id='arc' d='M 28,100 A 72,72 0 1,1 172,100' fill='none'/><text fill='%23ffffff' font-size='14.5' font-weight='bold' font-family='Arial, sans-serif'><textPath href='%23arc' startOffset='50%' text-anchor='middle'>BỆNH VIỆN BƯU ĐIỆN</textPath></text><path d='M 25 93 L 27.5 99 L 34 99 L 28.5 103 L 30.5 109 L 25 105 L 19.5 109 L 21.5 103 L 16 99 L 22.5 99 Z' fill='%23ffffff'/><path d='M 175 93 L 177.5 99 L 184 99 L 178.5 103 L 180.5 109 L 175 105 L 169.5 109 L 171.5 103 L 166 99 L 172.5 99 Z' fill='%23ffffff'/><text x='100' y='180' fill='%23ffffff' font-size='22' font-weight='900' font-family='Arial, sans-serif' text-anchor='middle' letter-spacing='4'>VNPT</text><rect x='87' y='72' width='26' height='56' rx='3' fill='%23e30613'/><rect x='72' y='87' width='56' height='26' rx='3' fill='%23e30613'/><path d='M 40,105 C 55,148 100,164 100,164 C 100,164 78,142 60,128 C 48,118 42,108 40,105 Z' fill='%236bbd45'/><path d='M 160,105 C 145,148 100,164 100,164 C 100,164 122,142 140,128 C 152,118 158,108 160,105 Z' fill='%236bbd45'/><path d='M 60,128 C 75,145 100,164 100,164 C 100,164 85,138 72,128 Z' fill='%236bbd45'/><path d='M 140,128 C 125,145 100,164 100,164 C 100,164 115,138 128,128 Z' fill='%236bbd45'/></svg>"
 
 # 5. MÀN HÌNH ĐĂNG NHẬP
@@ -245,7 +245,7 @@ elif menu_choice == "Quản lý BHXH":
     try:
         import modules.bhxh as bh
         bh.render_bhxh(engine)
-    except Exception as e:
+    except Exception:
         st.title("🩺 Quản lý Bảo hiểm xã hội (BHXH)")
         st.info("Chức năng đang kết nối CSDL và hoàn thiện giao diện...")
 
@@ -253,7 +253,7 @@ elif menu_choice == "Quản lý chấm công":
     try:
         import modules.cham_cong as cc
         cc.render_cham_cong(engine)
-    except Exception as e:
+    except Exception:
         st.title("⏰ Quản lý Chấm công & Tăng ca")
         st.info("Chức năng đang kết nối CSDL và hoàn thiện giao diện...")
 
@@ -261,9 +261,13 @@ elif menu_choice == "Báo cáo - Thống kê":
     try:
         import modules.bao_cao as bc
         bc.render_bao_cao(engine)
-    except Exception as e:
+    except Exception:
         st.title("📊 Báo cáo - Thống kê")
         st.info("Chức năng đang kết nối dữ liệu báo cáo chi tiết...")
+
+elif menu_choice == "Cấu hình Hệ thống":
+    import modules.cau_hinh as ch
+    ch.render_cau_hinh(engine)
 
 else:
     st.title(f"📌 {menu_choice}")
