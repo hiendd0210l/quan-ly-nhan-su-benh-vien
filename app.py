@@ -32,53 +32,151 @@ def init_connection():
 
 engine = init_connection()
 
-# 4. HÀM XỬ LÝ ĐĂNG NHẬP
+# 4. GIAO DIỆN MÀN HÌNH ĐĂNG NHẬP (LÀM ĐẸP THEO CONCEPT Y TẾ)
 def login_screen():
+    # Styling CSS cho Nền, Ô nhập liệu, Logo & Nút bấm
     st.markdown("""
         <style>
-            .login-box {
-                max-width: 420px;
-                margin: 50px auto;
-                padding: 30px;
-                background-color: #ffffff;
-                border-radius: 12px;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-                border: 1px solid #e0e0e0;
+            /* Nền tổng thể mềm mại */
+            .main .block-container {
+                padding-top: 3rem;
+                padding-bottom: 3rem;
+            }
+            
+            /* Khung Form Đăng nhập */
+            [data-testid="stForm"] {
+                background: linear-gradient(145deg, #ffffff, #f0f4f9);
+                padding: 35px 30px;
+                border-radius: 16px;
+                box-shadow: 0 10px 25px rgba(13, 71, 161, 0.12);
+                border: 1px solid #e1e8f0;
+            }
+
+            /* Định dạng Logo & Tiêu đề */
+            .logo-container {
+                text-align: center;
+                margin-bottom: 15px;
+            }
+            .hospital-logo {
+                width: 90px;
+                height: auto;
+                margin-bottom: 10px;
             }
             .login-title {
                 text-align: center;
                 color: #0d47a1;
-                font-weight: 700;
-                margin-bottom: 20px;
+                font-size: 24px;
+                font-weight: 800;
+                margin-bottom: 4px;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .login-subtitle {
+                text-align: center;
+                color: #5c6b73;
+                font-size: 14px;
+                margin-bottom: 25px;
+                font-weight: 500;
+            }
+
+            /* Nhãn và Ô nhập liệu */
+            [data-testid="stForm"] label {
+                color: #1e293b !important;
+                font-weight: 600 !important;
+                font-size: 14px !important;
+            }
+            [data-testid="stForm"] input {
+                background-color: #f8fafc !important;
+                border: 1.5px solid #cbd5e1 !important;
+                border-radius: 8px !important;
+                color: #0f172a !important;
+                padding: 10px 14px !important;
+            }
+            [data-testid="stForm"] input:focus {
+                border-color: #0284c7 !important;
+                box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15) !important;
+            }
+
+            /* Tùy chỉnh Nút Đăng Nhập */
+            div[data-testid="stFormSubmitButton"] > button {
+                background: linear-gradient(135deg, #0284c7, #0369a1) !important;
+                color: white !important;
+                font-weight: 700 !important;
+                border: none !important;
+                border-radius: 8px !important;
+                padding: 10px 0px !important;
+                transition: all 0.2s ease !important;
+            }
+            div[data-testid="stFormSubmitButton"] > button:hover {
+                background: linear-gradient(135deg, #0369a1, #075985) !important;
+                box-shadow: 0 4px 12px rgba(2, 132, 199, 0.3) !important;
+            }
+
+            /* Tùy chỉnh Nút Thoát */
+            div.element-container:has(button[key="btn_exit"]) button {
+                background: linear-gradient(135deg, #64748b, #475569) !important;
+                color: white !important;
+                font-weight: 700 !important;
+                border: none !important;
+                border-radius: 8px !important;
+                padding: 10px 0px !important;
+                transition: all 0.2s ease !important;
+            }
+            div.element-container:has(button[key="btn_exit"]) button:hover {
+                background: linear-gradient(135deg, #dc2626, #b91c1c) !important;
+                box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3) !important;
             }
         </style>
     """, unsafe_allow_html=True)
 
-    col1, col2, col3 = st.columns([1, 2, 1])
+    col1, col2, col3 = st.columns([1, 1.2, 1])
     with col2:
-        st.markdown("<h2 class='login-title'>🏥 BỆNH VIỆN BƯU ĐIỆN</h2>", unsafe_allow_html=True)
-        st.markdown("<h4 style='text-align: center; color: #555;'>Đăng nhập Hệ thống Quản trị Nhân sự</h4><br>", unsafe_allow_html=True)
+        # LOGO & TIÊU ĐỀ
+        st.markdown("""
+            <div class="logo-container">
+                <img class="hospital-logo" src="https://buudienhospital.vn/wp-content/uploads/2021/08/logo-bvbd.png" alt="Logo Bệnh viện Bưu điện">
+                <div class="login-title">BỆNH VIỆN BƯU ĐIỆN</div>
+                <div class="login-subtitle">Hệ thống Quản trị Nhân sự & Điều hành</div>
+            </div>
+        """, unsafe_allow_html=True)
         
+        # FORM ĐĂNG NHẬP
         with st.form("login_form"):
-            username = st.text_input("Tên đăng nhập / Username:", value="admin")
-            password = st.text_input("Mật khẩu / Password:", type="password", value="admin123")
-            submit_button = st.form_submit_button("Đăng nhập", use_container_width=True)
+            # Để trống văn bản, hiển thị gợi ý placeholder
+            username = st.text_input("Tên đăng nhập / Username:", value="", placeholder="Nhập tên đăng nhập...")
+            password = st.text_input("Mật khẩu / Password:", type="password", value="", placeholder="Nhập mật khẩu...")
+            st.markdown("<br>", unsafe_allow_html=True)
+
+            # Chia 2 cột cho Nút Đăng nhập & Nút Thoát
+            btn_col1, btn_col2 = st.columns(2)
+            
+            with btn_col1:
+                submit_button = st.form_submit_button("🔑 Đăng nhập", use_container_width=True)
+            
+            with btn_col2:
+                # Nút Thoát bên cạnh nút Đăng nhập
+                exit_button = st.form_submit_button("❌ Thoát", use_container_width=True)
 
             if submit_button:
-                # Kiểm tra thông tin đăng nhập mặc định
                 if username == "admin" and password == "admin123":
                     st.session_state.logged_in = True
                     st.session_state.user_info = {
                         "name": "admin",
                         "role": "Quản trị viên Hệ thống — Bệnh viện Bưu điện",
-                        "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop" # Ảnh đại diện cá nhân mới
+                        "avatar": "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop"
                     }
                     st.success("Đăng nhập thành công!")
                     st.rerun()
+                elif username == "" or password == "":
+                    st.warning("⚠️ Vui lòng nhập đầy đủ Tên đăng nhập và Mật khẩu!")
                 else:
                     st.error("❌ Tên đăng nhập hoặc mật khẩu không chính xác!")
 
-# NẾU CHƯA ĐĂNG NHẬP -> HIỂN THỊ MÀN HÌNH ĐĂNG NHẬP
+            if exit_button:
+                st.info("Cảm ơn bạn đã sử dụng hệ thống!")
+                st.stop()
+
+# NẾU CHƯA ĐĂNG NHẬP -> HIỂN THỊ MÀN HÌNH ĐĂNG NHẬP MỚI
 if not st.session_state.logged_in:
     login_screen()
     st.stop()
@@ -87,7 +185,6 @@ if not st.session_state.logged_in:
 # GIAO DIỆN CHÍNH KHI ĐÃ ĐĂNG NHẬP THÀNH CÔNG
 # ---------------------------------------------------------
 
-# TÙY CHỈNH THEME SIDEBAR TỐI MÀU
 st.markdown("""
     <style>
         [data-testid="stSidebar"] {
@@ -102,7 +199,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# GIAO DIỆN BÊN SIDEBAR
+# SIDEBAR
 st.sidebar.markdown(
     f"""
     <div style="text-align: center; padding-bottom: 10px;">
@@ -113,7 +210,6 @@ st.sidebar.markdown(
     unsafe_allow_html=True
 )
 
-# Thêm nút Đăng xuất ở Sidebar
 if st.sidebar.button("🚪 Đăng xuất", use_container_width=True):
     st.session_state.logged_in = False
     st.session_state.user_info = None
@@ -154,7 +250,6 @@ menu_choice = st.sidebar.radio(
 # ĐIỀU HƯỚNG MODULE
 if menu_choice == "Trang chủ / Dashboard":
     import modules.dashboard as db
-    # Truyền thông tin người dùng đã đăng nhập vào Dashboard
     db.render_dashboard(engine, user_info=st.session_state.user_info)
 
 elif menu_choice == "Hồ sơ Cán bộ CNV":
