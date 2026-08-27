@@ -2,193 +2,174 @@ import streamlit as st
 import pandas as pd
 
 def render_dashboard(engine, user_info=None):
-    # Lấy thông tin user nếu có, nếu không lấy mặc định
-    user_name = user_info.get("name", "admin") if user_info else "admin"
-    user_role = user_info.get("role", "Hệ thống Quản trị Nhân sự & Điều hành — Bệnh viện Bưu điện") if user_info else "Hệ thống Quản trị Nhân sự"
-    user_avatar = user_info.get("avatar", "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop") if user_info else "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200&auto=format&fit=crop"
+    # Lấy thông tin user đăng nhập (Mặc định nếu thiếu)
+    fullname = user_info.get("fullname", "Đoàn Danh Hiển") if user_info else "Đoàn Danh Hiển"
+    role = user_info.get("role", "Quản trị viên Hệ thống — Bệnh viện Bưu điện") if user_info else "Quản trị viên Hệ thống — Bệnh viện Bưu điện"
+    avatar_url = user_info.get("avatar", "https://i.imgur.com/8Q9eZ3X.jpg") if user_info else "https://i.imgur.com/8Q9eZ3X.jpg"
 
-    # CSS TÙY CHỈNH THEO CONCEPT CÁNH CAM / BAMBOOHR
+    # CSS Tùy chỉnh giao diện Dashboard chuẩn
     st.markdown("""
-    <style>
-        /* Profile Header */
-        .profile-container {
-            display: flex;
-            align-items: center;
-            background-color: #ffffff;
-            padding: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
-            margin-bottom: 25px;
-        }
-        .profile-avatar {
-            width: 85px;
-            height: 85px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid #0056b3;
-            margin-right: 20px;
-        }
-        .profile-greeting {
-            font-size: 32px;
-            font-weight: 700;
-            color: #2b3a4a;
-            margin: 0;
-            line-height: 1.2;
-        }
-        .profile-role {
-            font-size: 16px;
-            color: #6c757d;
-            margin-top: 4px;
-            font-weight: 500;
-        }
+        <style>
+            .welcome-card {
+                display: flex;
+                align-items: center;
+                gap: 20px;
+                background-color: #ffffff;
+                padding: 20px 24px;
+                border-radius: 12px;
+                box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+                border: 1px solid #e2e8f0;
+                margin-bottom: 25px;
+            }
+            .avatar-img {
+                width: 80px;
+                height: 80px;
+                border-radius: 50%;
+                object-fit: cover;
+                border: 3px solid #0056b3;
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            }
+            .welcome-title {
+                font-size: 26px;
+                font-weight: 800;
+                color: #1e293b;
+                margin: 0;
+            }
+            .welcome-sub {
+                font-size: 14px;
+                color: #64748b;
+                margin-top: 4px;
+                font-weight: 500;
+            }
 
-        /* Metro Tile Cards */
-        .tile-card {
-            border-radius: 10px;
-            padding: 22px;
-            color: white;
-            min-height: 180px;
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            margin-bottom: 20px;
-        }
-        .tile-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-        }
-        .tile-icon {
-            font-size: 32px;
-            margin-bottom: 10px;
-        }
-        .tile-title {
-            font-size: 16px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-        }
-        .tile-desc {
-            font-size: 13px;
-            opacity: 0.92;
-            line-height: 1.4;
-            flex-grow: 1;
-        }
-        .tile-action {
-            font-size: 13px;
-            font-weight: bold;
-            text-align: right;
-            margin-top: 15px;
-            letter-spacing: 1px;
-        }
+            /* CSS Thẻ chức năng (Cards) */
+            .dash-card {
+                padding: 20px;
+                border-radius: 12px;
+                color: white !important;
+                margin-bottom: 15px;
+                min-height: 140px;
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between;
+                box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            }
+            .card-red { background: linear-gradient(135deg, #ef4444, #dc2626); }
+            .card-green { background: linear-gradient(135deg, #10b981, #059669); }
+            .card-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+            .card-dark { background: linear-gradient(135deg, #334155, #1e293b); }
+            .card-orange { background: linear-gradient(135deg, #f97316, #ea580c); }
 
-        /* Màu nền riêng cho từng khối */
-        .bg-red { background: linear-gradient(135deg, #ea5455, #e35d6a); }
-        .bg-teal { background: linear-gradient(135deg, #1cb14b, #20c997); }
-        .bg-blue { background: linear-gradient(135deg, #2b70e4, #3b82f6); }
-        .bg-dark { background: linear-gradient(135deg, #343a40, #495057); }
-        .bg-orange { background: linear-gradient(135deg, #fd7e14, #ff922b); }
-        .bg-green { background: linear-gradient(135deg, #20c997, #0ca678); }
-    </style>
+            .card-title {
+                font-size: 16px;
+                font-weight: 800;
+                text-transform: uppercase;
+                letter-spacing: 0.5px;
+            }
+            .card-desc {
+                font-size: 12.5px;
+                opacity: 0.9;
+                margin-top: 6px;
+            }
+            .card-action {
+                font-size: 12px;
+                font-weight: 700;
+                text-align: right;
+                text-transform: uppercase;
+                opacity: 0.95;
+            }
+        </style>
     """, unsafe_allow_html=True)
 
-    # 1. HEADER CHÀO MỪNG DỰA TRÊN THÔNG TIN ĐĂNG NHẬP
+    # 1. KHỐI XIN CHÀO ADMIN (ĐOÀN DANH HIỂN)
     st.markdown(f"""
-        <div class="profile-container">
-            <img class="profile-avatar" src="{user_avatar}" alt="User Avatar">
+        <div class="welcome-card">
+            <img src="{avatar_url}" class="avatar-img" alt="Avatar Admin">
             <div>
-                <div class="profile-greeting">Xin chào, {user_name}</div>
-                <div class="profile-role">{user_role}</div>
+                <div class="welcome-title">Xin chào, {fullname}</div>
+                <div class="welcome-sub">{role}</div>
             </div>
         </div>
     """, unsafe_allow_html=True)
 
-    # 2. HÀNG 1 CÁC KHỐI THẺ CHỨC NĂNG (METRO TILES - ROW 1)
+    # 2. HÀNG THẺ CHỨC NĂNG HÀNG 1
     col1, col2, col3 = st.columns(3)
-
+    
     with col1:
         st.markdown("""
-            <div class="tile-card bg-red">
+            <div class="dash-card card-red">
                 <div>
-                    <div class="tile-icon">📇</div>
-                    <div class="tile-title">HỒ SƠ CÁN BỘ CNV</div>
-                    <div class="tile-desc">Theo dõi, cập nhật và quản lý toàn bộ danh sách hồ sơ 877 nhân sự toàn bệnh viện.</div>
+                    <div class="card-title">📇 HỒ SƠ CÁN BỘ CNV</div>
+                    <div class="card-desc">Theo dõi, cập nhật và quản lý toàn bộ danh sách hồ sơ 877 nhân sự toàn bệnh viện.</div>
                 </div>
-                <div class="tile-action">XEM CHI TIẾT ➔</div>
+                <div class="card-action">XEM CHI TIẾT ➔</div>
             </div>
         """, unsafe_allow_html=True)
 
     with col2:
         st.markdown("""
-            <div class="tile-card bg-teal">
+            <div class="dash-card card-green">
                 <div>
-                    <div class="tile-icon">📊</div>
-                    <div class="tile-title">BÁO CÁO & THỐNG KÊ</div>
-                    <div class="tile-desc">Truy xuất dữ liệu báo cáo BYT, Sở Y tế và biến động nhân sự theo thời gian thực.</div>
+                    <div class="card-title">📊 BÁO CÁO & THỐNG KÊ</div>
+                    <div class="card-desc">Truy xuất dữ liệu báo cáo BYT, SBYT và biến động nhân sự theo thời gian thực.</div>
                 </div>
-                <div class="tile-action">XEM BÁO CÁO ➔</div>
+                <div class="card-action">XEM BÁO CÁO ➔</div>
             </div>
         """, unsafe_allow_html=True)
 
     with col3:
         st.markdown("""
-            <div class="tile-card bg-blue">
+            <div class="dash-card card-blue">
                 <div>
-                    <div class="tile-icon">📜</div>
-                    <div class="tile-title">GPHN & ĐÀO TẠO CME</div>
-                    <div class="tile-desc">Quản lý Chứng chỉ hành nghề và tiến độ tích lũy 48 tiết CME của Bác sĩ / Điều dưỡng.</div>
+                    <div class="card-title">📜 GPHN & ĐÀO TẠO CME</div>
+                    <div class="card-desc">Quản lý Chứng chỉ hành nghề và tiến độ tích lũy 48 tiết CME của Bác sĩ / Điều dưỡng.</div>
                 </div>
-                <div class="tile-action">XEM CHI TIẾT ➔</div>
+                <div class="card-action">XEM CHI TIẾT ➔</div>
             </div>
         """, unsafe_allow_html=True)
 
-    # 3. HÀNG 2 CÁC KHỐI THẺ CHỨC NĂNG (METRO TILES - ROW 2)
-    col4, col5, col6 = st.columns(3)
+    # HÀNG THẺ CHỨC NĂNG HÀNG 2
+    c1, c2, c3 = st.columns(3)
 
-    with col4:
+    with c1:
         st.markdown("""
-            <div class="tile-card bg-dark">
+            <div class="dash-card card-dark">
                 <div>
-                    <div class="tile-icon">📝</div>
-                    <div class="tile-title">HỢP ĐỒNG LAO ĐỘNG</div>
-                    <div class="tile-desc">Theo dõi hợp đồng xác định thời hạn, không xác định thời hạn và lịch tái ký.</div>
+                    <div class="card-title">📝 HỢP ĐỒNG LAO ĐỘNG</div>
+                    <div class="card-desc">Theo dõi hợp đồng xác định thời hạn, không xác định thời hạn và lịch tái ký.</div>
                 </div>
-                <div class="tile-action">QUẢN LÝ HĐ ➔</div>
+                <div class="card-action">QUẢN LÝ HỒ SƠ ➔</div>
             </div>
         """, unsafe_allow_html=True)
 
-    with col5:
+    with c2:
         st.markdown("""
-            <div class="tile-card bg-orange">
+            <div class="dash-card card-orange">
                 <div>
-                    <div class="tile-icon">💰</div>
-                    <div class="tile-title">NÂNG BẬC LƯƠNG & NGẠCH</div>
-                    <div class="tile-desc">Quản lý hệ số lương, ngạch viên chức và cảnh báo danh sách đủ điều kiện nâng lương.</div>
+                    <div class="card-title">💰 NÂNG BẬC LƯƠNG & NGẠCH</div>
+                    <div class="card-desc">Quản lý hệ số lương, ngạch viên chức và cảnh báo danh sách đủ điều kiện nâng lương.</div>
                 </div>
-                <div class="tile-action">XEM DANH SÁCH ➔</div>
+                <div class="card-action">XEM DANH SÁCH ➔</div>
             </div>
         """, unsafe_allow_html=True)
 
-    with col6:
+    with c3:
         st.markdown("""
-            <div class="tile-card bg-green">
+            <div class="dash-card card-green">
                 <div>
-                    <div class="tile-icon">🩺</div>
-                    <div class="tile-title">QUẢN LÝ BHXH & SỨC KHỎE</div>
-                    <div class="tile-desc">Theo dõi chế độ Bảo hiểm xã hội, đóng BHXH và đợt khám sức khỏe định kỳ.</div>
+                    <div class="card-title">🏥 QUẢN LÝ BHXH & SỨC KHỎE</div>
+                    <div class="card-desc">Theo dõi chế độ Bảo hiểm xã hội, đóng BHYT và đợt khám sức khỏe định kỳ.</div>
                 </div>
-                <div class="tile-action">CHI TIẾT ➔</div>
+                <div class="card-action">CHI TIẾT ➔</div>
             </div>
         """, unsafe_allow_html=True)
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # 4. KHU VỰC CẢNH BÁO TỰ ĐỘNG BÊN DƯỚI
+    # 3. BẢNG CẢNH BÁO TỰ ĐỘNG & LỊCH CẦN XỬ LÝ
     st.subheader("📌 Cảnh báo Tự động & Lịch cần xử lý")
-    
-    alert_data = [
+
+    alerts_data = [
         {
             "Loại cảnh báo": "Hạn Hợp đồng",
             "Họ và tên / Đơn vị": "BS. Nguyễn Văn An (Khoa Ngoại TH)",
@@ -204,8 +185,22 @@ def render_dashboard(engine, user_info=None):
         {
             "Loại cảnh báo": "Cảnh báo CME",
             "Họ và tên / Đơn vị": "KTV. Phạm Quốc Cường (Khoa CĐHA)",
-            "Nội dung chi tiết": "Mới đạt 32/48 tiết CME trong chu kỳ 2 năm",
-            "Thời hạn / Trạng thái": "Thiếu 16 tiết (Cần bù gấp)"
+            "Nội dung chi tiết": "Mới đạt 12/48 tiết CME trong chu kỳ 2 năm",
+            "Thời hạn / Trạng thái": "Thiếu 36 tiết (Cần bổ sung)"
+        },
+        {
+            "Loại cảnh báo": "Hết hạn GPHN",
+            "Họ và tên / Đơn vị": "BS. Tran Thi Mai (Khoa Cấp cứu)",
+            "Nội dung chi tiết": "Yêu cầu bổ sung thông tin cập nhật GPHN theo quy định mới",
+            "Thời hạn / Trạng thái": "Cần xử lý gấp"
         }
     ]
-    st.dataframe(pd.DataFrame(alert_data), use_container_width=True, hide_index=True)
+
+    df_alerts = pd.DataFrame(alerts_data)
+    
+    # Hiển thị bảng dữ liệu cảnh báo
+    st.dataframe(
+        df_alerts,
+        use_container_width=True,
+        hide_index=True
+    )
