@@ -1,32 +1,14 @@
 import streamlit as st
 import pandas as pd
+import os
 
 def render_dashboard(engine, user_info=None):
     fullname = user_info.get("fullname", "Đoàn Danh Hiển") if user_info else "Đoàn Danh Hiển"
     role = user_info.get("role", "Quản trị viên Hệ thống — Bệnh viện Bưu điện") if user_info else "Quản trị viên Hệ thống — Bệnh viện Bưu điện"
-    avatar_data = user_info.get("avatar") if user_info else ""
+    avatar_path = user_info.get("avatar_path", "doan_danh_hien.jpg") if user_info else "doan_danh_hien.jpg"
 
     st.markdown("""
         <style>
-            .welcome-card {
-                display: flex;
-                align-items: center;
-                gap: 20px;
-                background-color: #ffffff;
-                padding: 20px 24px;
-                border-radius: 12px;
-                box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-                border: 1px solid #e2e8f0;
-                margin-bottom: 25px;
-            }
-            .avatar-img {
-                width: 85px;
-                height: 85px;
-                border-radius: 50%;
-                object-fit: cover;
-                border: 3px solid #0056b3;
-                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            }
             .dash-card {
                 padding: 20px;
                 border-radius: 12px;
@@ -49,16 +31,25 @@ def render_dashboard(engine, user_info=None):
         </style>
     """, unsafe_allow_html=True)
 
-    # KHỐI XIN CHÀO VỚI ẢNH BASE64
-    st.markdown(f"""
-        <div class="welcome-card">
-            <img src="{avatar_data}" class="avatar-img" alt="Avatar Admin">
-            <div>
-                <div style="font-size: 26px; font-weight: 800; color: #1e293b;">Xin chào, {fullname}</div>
-                <div style="font-size: 14px; color: #64748b; font-weight: 500; margin-top: 4px;">{role}</div>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
+    # KHỐI XIN CHÀO VỚI ST.IMAGE CHUẨN STREAMLIT
+    with st.container():
+        col_img, col_txt = st.columns([0.15, 0.85])
+        with col_img:
+            if os.path.exists(avatar_path):
+                st.image(avatar_path, width=85)
+            elif os.path.exists("assets/doan_danh_hien.jpg"):
+                st.image("assets/doan_danh_hien.jpg", width=85)
+            else:
+                st.image("https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200", width=85)
+        with col_txt:
+            st.markdown(f"""
+                <div style="padding-top: 5px;">
+                    <h2 style="margin: 0; font-size: 26px; font-weight: 800; color: #1e293b;">Xin chào, {fullname}</h2>
+                    <p style="margin: 4px 0 0 0; font-size: 14px; color: #64748b; font-weight: 500;">{role}</p>
+                </div>
+            """, unsafe_allow_html=True)
+
+    st.markdown("<br>", unsafe_allow_html=True)
 
     # CÁC THẺ CHỨC NĂNG
     col1, col2, col3 = st.columns(3)
